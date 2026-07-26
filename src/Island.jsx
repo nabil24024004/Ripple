@@ -1,7 +1,282 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Mic, SkipBackIcon, Play, Pause, SkipForwardIcon, Music, Headphones, Zap, Settings, Sun, Cloud, Droplets, Trash2, ChevronRight, ChevronLeft, Plus, Check, X, CloudRain, CloudSnow, CloudLightning, CloudSun, Moon, Eye, EyeOff, GripVertical, List, Search, Star, Calendar as CalendarIcon, Bell, Activity, Cpu, Clock, Volume2, VolumeX, Wind, RotateCcw, Thermometer, Radio } from "lucide-react";
+import { Camera, Mic, SkipBackIcon, Play, Pause, SkipForwardIcon, Music, Headphones, Zap, Settings, Sun, Cloud, Droplets, Trash2, ChevronRight, ChevronLeft, Plus, Check, X, CloudRain, CloudSnow, CloudLightning, CloudSun, Moon, Eye, EyeOff, GripVertical, List, Search, Star, Calendar as CalendarIcon, Bell, BellOff, AlarmClock, Timer, Activity, Cpu, Clock, Volume2, VolumeX, Wind, RotateCcw, Thermometer, Radio } from "lucide-react";
 import "./App.css";
+
+// Helper format timer MM:SS
+function formatTimerMMSS(totalSec) {
+  const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
+  const s = (totalSec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+// Play melodic audio alarm chime on timer completion using Web Audio API
+function playTimerAlarmSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+
+    const playChime = (freq, startTime, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
+      
+      gain.gain.setValueAtTime(0, ctx.currentTime + startTime);
+      gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + startTime + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startTime + duration);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.start(ctx.currentTime + startTime);
+      osc.stop(ctx.currentTime + startTime + duration);
+    };
+
+    // Play 3 pulses of a 3-note melodic alarm chime (C5 -> E5 -> G5)
+    [0, 0.45, 0.90].forEach((pulseDelay) => {
+      playChime(523.25, pulseDelay + 0.00, 0.18); // C5
+      playChime(659.25, pulseDelay + 0.12, 0.18); // E5
+      playChime(784.00, pulseDelay + 0.24, 0.30); // G5
+    });
+  } catch (err) {
+    console.error("Failed to play timer alarm sound:", err);
+  }
+}
+
+const TimerCircleProgress = ({ progress = 1, size = 18, strokeWidth = 2.5 }) => {
+  const safeProgress = Math.min(1, Math.max(0, progress));
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - safeProgress);
+  const glowRadius = Math.max(1, Math.round(safeProgress * 8));
+
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', overflow: 'visible', display: 'block' }}>
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="rgba(255, 149, 0, 0.25)"
+        strokeWidth={strokeWidth}
+      />
+      <motion.circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="#ff9500"
+        strokeWidth={strokeWidth}
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        initial={{ strokeDashoffset: circ }}
+        animate={{ strokeDashoffset: offset }}
+        transition={{ duration: 0.4, ease: "linear" }}
+        style={{ filter: `drop-shadow(0 0 ${glowRadius}px rgba(255, 149, 0, ${0.3 + safeProgress * 0.5}))` }}
+      />
+    </svg>
+  );
+};
+
+// 3D Layered Animated Weather Icon (Dedicated Day & Night Icon Sets - Optimized with React.memo & GPU hardware acceleration)
+const Animated3DWeatherIcon = React.memo(({ status = "Partly Sunny", size = 64, isNight: isNightProp = null }) => {
+  const statusLower = (status || "Partly Sunny").toLowerCase();
+  
+  // Auto-detect Night if local time is >= 18:00 or < 06:00, or status includes night/moon, or isNightProp is true
+  const currentHour = new Date().getHours();
+  const isNightTime = isNightProp !== null ? isNightProp : (statusLower.includes("night") || statusLower.includes("moon") || (currentHour >= 18 || currentHour < 6));
+
+  const isRain = statusLower.includes("rain") || statusLower.includes("drizzle");
+  const isSnow = statusLower.includes("snow");
+  const isThunder = statusLower.includes("thunder") || statusLower.includes("storm");
+  const isCloudy = statusLower.includes("cloud") || statusLower.includes("overcast") || statusLower.includes("partly") || statusLower.includes("fair");
+
+  const scaleRatio = size / 64;
+  const isMini = size <= 28;
+
+  return (
+    <div style={{ width: size, height: size, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, willChange: 'transform', transform: 'translateZ(0)' }}>
+      {/* 1. DAY SET: 3D Pulsing Sun */}
+      {!isNightTime && (
+        <motion.div
+          animate={isMini ? undefined : { scale: [1, 1.06, 1], rotate: [0, 45, 90] }}
+          transition={isMini ? undefined : { duration: 12, repeat: Infinity, ease: "linear" }}
+          style={{
+            position: 'absolute',
+            top: isCloudy ? `${size * 0.05}px` : `${size * 0.1}px`,
+            left: isCloudy ? `${size * 0.08}px` : `${size * 0.15}px`,
+            width: size * 0.55,
+            height: size * 0.55,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 35% 35%, #fff59d 0%, #ffb74d 50%, #ff9800 100%)',
+            boxShadow: '0 0 14px rgba(255, 167, 38, 0.75)',
+            willChange: 'transform',
+            transform: 'translateZ(0)',
+            zIndex: 1
+          }}
+        />
+      )}
+
+      {/* 2. NIGHT SET: 3D Glowing Pearl Moon & Twinkling Stars */}
+      {isNightTime && (
+        <>
+          {/* Glowing Moon */}
+          <motion.div
+            animate={isMini ? undefined : { rotate: [-4, 4, -4], scale: [1, 1.03, 1] }}
+            transition={isMini ? undefined : { duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              position: 'absolute',
+              top: `${size * 0.06}px`,
+              left: `${size * 0.1}px`,
+              width: size * 0.52,
+              height: size * 0.52,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle at 35% 35%, #ffffff 0%, #dbeafe 45%, #93c5fd 80%, #3b82f6 100%)',
+              boxShadow: '0 0 14px rgba(147, 197, 253, 0.8)',
+              willChange: 'transform',
+              transform: 'translateZ(0)',
+              zIndex: 1
+            }}
+          />
+
+          {/* Twinkling Stars (Header Icon only) */}
+          {!isMini && (
+            <>
+              <motion.div
+                animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                style={{
+                  position: 'absolute',
+                  top: `${size * 0.05}px`,
+                  right: `${size * 0.08}px`,
+                  width: 4 * scaleRatio,
+                  height: 4 * scaleRatio,
+                  borderRadius: '50%',
+                  background: '#ffffff',
+                  boxShadow: '0 0 6px #ffffff',
+                  zIndex: 1
+                }}
+              />
+              <motion.div
+                animate={{ opacity: [1, 0.2, 1], scale: [1.1, 0.7, 1.1] }}
+                transition={{ duration: 3, repeat: Infinity, delay: 0.8, ease: "easeInOut" }}
+                style={{
+                  position: 'absolute',
+                  top: `${size * 0.35}px`,
+                  left: `${size * 0.02}px`,
+                  width: 3 * scaleRatio,
+                  height: 3 * scaleRatio,
+                  borderRadius: '50%',
+                  background: '#93c5fd',
+                  boxShadow: '0 0 5px #93c5fd',
+                  zIndex: 1
+                }}
+              />
+            </>
+          )}
+        </>
+      )}
+
+      {/* 3. Layered 3D Frosted Glass Cloud Layer */}
+      {(isCloudy || isRain || isSnow || isThunder) && (
+        <motion.div
+          animate={isMini ? undefined : { y: [-1.5, 1.5, -1.5], x: [-1, 1, -1] }}
+          transition={isMini ? undefined : { duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            position: 'absolute',
+            bottom: `${size * 0.1}px`,
+            right: `${size * 0.05}px`,
+            width: size * 0.72,
+            height: size * 0.38,
+            borderRadius: size * 0.25,
+            background: isNightTime
+              ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.92) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(220, 232, 245, 0.9) 100%)',
+            boxShadow: isNightTime
+              ? '0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.25)'
+              : '0 4px 10px rgba(0, 0, 0, 0.2), inset 0 1.5px 2px rgba(255, 255, 255, 0.95)',
+            border: isNightTime
+              ? '1px solid rgba(148, 163, 184, 0.35)'
+              : '1px solid rgba(255, 255, 255, 0.7)',
+            willChange: 'transform',
+            transform: 'translateZ(0)',
+            zIndex: 2
+          }}
+        >
+          {/* Top Cloud Bump Left */}
+          <div style={{
+            position: 'absolute',
+            top: `-${size * 0.18}px`,
+            left: `${size * 0.1}px`,
+            width: size * 0.32,
+            height: size * 0.32,
+            borderRadius: '50%',
+            background: isNightTime
+              ? 'linear-gradient(135deg, rgba(51, 65, 85, 0.98) 0%, rgba(30, 41, 59, 0.92) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(225, 235, 248, 0.9) 100%)',
+            boxShadow: isNightTime ? 'inset 0 1px 2px rgba(255, 255, 255, 0.2)' : 'inset 0 1.5px 2px rgba(255, 255, 255, 0.95)'
+          }} />
+          {/* Top Cloud Bump Right */}
+          <div style={{
+            position: 'absolute',
+            top: `-${size * 0.14}px`,
+            right: `${size * 0.12}px`,
+            width: size * 0.26,
+            height: size * 0.26,
+            borderRadius: '50%',
+            background: isNightTime
+              ? 'linear-gradient(135deg, rgba(40, 53, 72, 0.95) 0%, rgba(20, 30, 48, 0.88) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(215, 228, 242, 0.88) 100%)',
+            boxShadow: isNightTime ? 'inset 0 1px 2px rgba(255, 255, 255, 0.2)' : 'inset 0 1.5px 2px rgba(255, 255, 255, 0.95)'
+          }} />
+        </motion.div>
+      )}
+
+      {/* 4. Falling Animated Raindrops */}
+      {(isRain && !isMini) && (
+        <div style={{ position: 'absolute', bottom: '0px', right: `${size * 0.15}px`, zIndex: 3, display: 'flex', gap: 4 * scaleRatio }}>
+          {[0, 0.2, 0.4].map((delay, i) => (
+            <motion.div
+              key={`drop-${i}`}
+              animate={{ y: [0, 8 * scaleRatio], opacity: [0, 1, 0] }}
+              transition={{ duration: 0.8, repeat: Infinity, delay, ease: "easeIn" }}
+              style={{
+                width: Math.max(2, 3 * scaleRatio),
+                height: Math.max(5, 7 * scaleRatio),
+                borderRadius: 4,
+                background: 'linear-gradient(to bottom, #38bdf8, #0284c7)',
+                boxShadow: '0 0 4px #38bdf8'
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 5. Animated Snowflakes */}
+      {(isSnow && !isMini) && (
+        <div style={{ position: 'absolute', bottom: '2px', right: `${size * 0.12}px`, zIndex: 3, display: 'flex', gap: 4 * scaleRatio }}>
+          {[0, 0.3, 0.6].map((delay, i) => (
+            <motion.div
+              key={`snow-${i}`}
+              animate={{ y: [0, 6 * scaleRatio], rotate: [0, 180], opacity: [0.3, 1, 0] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay, ease: "easeInOut" }}
+              style={{
+                width: Math.max(3, 5 * scaleRatio),
+                height: Math.max(3, 5 * scaleRatio),
+                borderRadius: '50%',
+                background: '#ffffff',
+                boxShadow: '0 0 6px rgba(255, 255, 255, 0.9)'
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
 
 //Get Date
 function formatDateShort(input) {
@@ -112,7 +387,7 @@ const TABS = [
   { id: 6, name: "Game / Stats", icon: (color) => <Activity size={16} color={color} /> },
   { id: 7, name: "Clipboard", icon: (color) => <List size={16} color={color} /> },
   { id: 8, name: "Tasks", icon: (color) => <Check size={16} color={color} /> },
-  { id: 10, name: "Timer / Stopwatch", icon: (color) => <Clock size={16} color={color} /> },
+  { id: 10, name: "Timer", icon: (color) => <Timer size={16} color={color} /> },
   { id: 9, name: "Settings", icon: (color) => <Settings size={16} color={color} /> },
 ];
 
@@ -213,6 +488,245 @@ const WaveformScrubber = ({ position = 0, duration = 0, isPlaying = false, onSee
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.55)', fontFamily: 'OpenRunde, sans-serif' }}>
         <span>{formatTime(currentPos)}</span>
         <span>{formatTime(duration)}</span>
+      </div>
+    </div>
+  );
+};
+
+const SmallTopRightBattery = ({ percent = 100, charging = false }) => {
+  const isLow = percent <= 20 && !charging;
+  const fillBg = isLow ? '#ff3b30' : '#34c759';
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, userSelect: 'none' }}>
+      <div
+        style={{
+          position: 'relative',
+          width: 38,
+          height: 17,
+          background: fillBg,
+          borderRadius: 5,
+          border: '1px solid rgba(255,255,255,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 2px',
+          boxSizing: 'border-box',
+          boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 1, zIndex: 2 }}>
+          {charging && <Zap size={9} color="#ffffff" fill="#ffffff" />}
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 800,
+              color: '#ffffff',
+              fontFamily: 'OpenRunde, system-ui, sans-serif',
+              letterSpacing: '-0.3px',
+              textShadow: '0 1px 2px rgba(0,0,0,0.4)'
+            }}
+          >
+            {percent}%
+          </span>
+        </div>
+      </div>
+      <div
+        style={{
+          width: 2.5,
+          height: 7,
+          background: 'rgba(255,255,255,0.6)',
+          borderRadius: '0 2px 2px 0'
+        }}
+      />
+    </div>
+  );
+};
+
+const FlipCard = ({ digit }) => {
+  const [currentDigit, setCurrentDigit] = useState(digit);
+  const [previousDigit, setPreviousDigit] = useState(digit);
+  const [isFlipping, setIsFlipping] = useState(false);
+
+  useEffect(() => {
+    if (digit !== currentDigit) {
+      setPreviousDigit(currentDigit);
+      setCurrentDigit(digit);
+      setIsFlipping(true);
+      const timer = setTimeout(() => setIsFlipping(false), 450);
+      return () => clearTimeout(timer);
+    }
+  }, [digit, currentDigit]);
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: 140,
+        height: 124,
+        background: '#18181c',
+        borderRadius: 18,
+        padding: 5,
+        boxSizing: 'border-box',
+        boxShadow: '0 12px 28px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.14)',
+        border: '1.5px solid #2b2b32',
+        perspective: 1000
+      }}
+    >
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          background: 'linear-gradient(to bottom, #ececec 0%, #d6d6d6 49%, #c6c6c6 51%, #e2e2e2 100%)',
+          borderRadius: 13,
+          overflow: 'hidden',
+          boxShadow: 'inset 0 1.5px 2px rgba(255,255,255,0.9), inset 0 -1.5px 3px rgba(0,0,0,0.35)'
+        }}
+      >
+        {/* TOP HALF (New digit) */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '50%',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            background: 'linear-gradient(to bottom, #ececec 0%, #d8d8d8 100%)'
+          }}
+        >
+          <span
+            style={{
+              fontSize: 82,
+              fontWeight: 800,
+              color: '#0070f3',
+              fontFamily: 'OpenRunde, system-ui, sans-serif',
+              letterSpacing: '-2px',
+              userSelect: 'none',
+              marginTop: 4
+            }}
+          >
+            {currentDigit}
+          </span>
+        </div>
+
+        {/* BOTTOM HALF (Old digit while flipping, new digit when done) */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '50%',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            background: 'linear-gradient(to bottom, #c6c6c6 0%, #e2e2e2 100%)'
+          }}
+        >
+          <span
+            style={{
+              fontSize: 82,
+              fontWeight: 800,
+              color: '#0070f3',
+              fontFamily: 'OpenRunde, system-ui, sans-serif',
+              letterSpacing: '-2px',
+              userSelect: 'none',
+              marginBottom: 4
+            }}
+          >
+            {isFlipping ? previousDigit : currentDigit}
+          </span>
+        </div>
+
+        {/* ANIMATED FLIP FLAP (Top flap folding downward) */}
+        {isFlipping && (
+          <motion.div
+            initial={{ rotateX: 0 }}
+            animate={{ rotateX: -180 }}
+            transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '50%',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'center',
+              background: 'linear-gradient(to bottom, #ececec 0%, #d8d8d8 100%)',
+              transformOrigin: 'bottom center',
+              backfaceVisibility: 'hidden',
+              zIndex: 20,
+              boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
+            }}
+          >
+            <span
+              style={{
+                fontSize: 82,
+                fontWeight: 800,
+                color: '#0070f3',
+                fontFamily: 'OpenRunde, system-ui, sans-serif',
+                letterSpacing: '-2px',
+                userSelect: 'none',
+                marginTop: 4
+              }}
+            >
+              {previousDigit}
+            </span>
+          </motion.div>
+        )}
+
+        {/* Middle split line */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: 0,
+            right: 0,
+            height: 2.5,
+            background: '#18181c',
+            marginTop: -1.25,
+            zIndex: 30,
+            boxShadow: '0 1px 1px rgba(255,255,255,0.45)'
+          }}
+        />
+
+        {/* Left hinge pin */}
+        <div
+          style={{
+            position: 'absolute',
+            left: -1,
+            top: '50%',
+            marginTop: -6,
+            width: 7,
+            height: 12,
+            background: '#1c1c20',
+            borderRadius: '0 3px 3px 0',
+            zIndex: 31
+          }}
+        />
+
+        {/* Right hinge pin */}
+        <div
+          style={{
+            position: 'absolute',
+            right: -1,
+            top: '50%',
+            marginTop: -6,
+            width: 7,
+            height: 12,
+            background: '#1c1c20',
+            borderRadius: '3px 0 0 3px',
+            zIndex: 31
+          }}
+        />
       </div>
     </div>
   );
@@ -370,9 +884,10 @@ export default function Island() {
   const [albumHovered, setAlbumHovered] = useState(false);
   const [albumRotation, setAlbumRotation] = useState({ x: 0, y: 0 });
 
-  // Timer / Stopwatch State
-  const [timerMode, setTimerMode] = useState("stopwatch");
+  // Timer State (Stopwatch removed per user request)
   const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerTotalDuration, setTimerTotalDuration] = useState(300);
+  const [customTimerSetup, setCustomTimerSetup] = useState(300);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
   // Volume HUD State
@@ -392,22 +907,29 @@ export default function Island() {
   useEffect(() => {
     let interval = null;
     if (isTimerRunning) {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
       interval = setInterval(() => {
         setTimerSeconds((prev) => {
-          if (timerMode === "timer") {
-            if (prev <= 1) {
-              setIsTimerRunning(false);
-              return 0;
+          if (prev <= 1) {
+            setIsTimerRunning(false);
+            playTimerAlarmSound();
+            if ('Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification("Timer Finished! 🔔", { body: "Your countdown timer has ended." });
+              } catch (e) {
+                console.log("Notification error:", e);
+              }
             }
-            return prev - 1;
-          } else {
-            return prev + 1;
+            return 0;
           }
+          return prev - 1;
         });
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning, timerMode]);
+  }, [isTimerRunning]);
 
   // Tab calculations
   const isMusicActive = !!spotifyTrack;
@@ -654,7 +1176,7 @@ export default function Island() {
   const hoverExtraWidth = 36;
   const nowPlayingWidth = isHovered ? 135 : 110;
   const width = mode === "large"
-    ? (currentTab === 9 ? 495 : currentTab === 1 ? 380 : currentTab === 10 ? 360 : currentTab === 0 ? 405 : currentTab === 4 ? 360 : currentTab === 6 ? 340 : currentTab === 3 ? 380 : 380)
+    ? (currentTab === 9 ? 495 : currentTab === 1 ? 390 : currentTab === 10 ? 370 : currentTab === 0 ? 405 : currentTab === 4 ? 360 : currentTab === 6 ? 340 : currentTab === 3 ? 380 : 380)
     : (mode === "quick" && isPlaying && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert && !volumeAlert)
       ? nowPlayingWidth
       : (mode === "quick" || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert || volumeAlert)
@@ -663,7 +1185,7 @@ export default function Island() {
           ? nowPlayingWidth
           : 170;
   const height = mode === "large"
-    ? (currentTab === 9 ? (positionMode === "free" ? 435 : 355) : currentTab === 8 ? 250 : currentTab === 1 ? 210 : currentTab === 4 ? 260 : currentTab === 5 ? 240 : currentTab === 6 ? 180 : currentTab === 10 ? 170 : currentTab === 3 ? 185 : currentTab === 0 ? 120 : 190)
+    ? (currentTab === 9 ? (positionMode === "free" ? 435 : 355) : currentTab === 8 ? 250 : currentTab === 1 ? 272 : currentTab === 4 ? 260 : currentTab === 5 ? 240 : currentTab === 6 ? 180 : currentTab === 10 ? 192 : currentTab === 3 ? 185 : currentTab === 0 ? 120 : 190)
     : 40;
 
   useEffect(() => {
@@ -1551,10 +2073,63 @@ export default function Island() {
         pointerEvents: isTransitioning ? 'auto' : (window.electronAPI?.platform === 'linux' && mode === 'still' && !isHovered) ? 'none' : 'auto'
       }}
     >
+      {/* Depleting Orange Border Stroke & Synchronized Glow for Active Timer */}
+      {(isTimerRunning || timerSeconds > 0) && (() => {
+        const progress = timerTotalDuration > 0 ? Math.min(1, Math.max(0, timerSeconds / timerTotalDuration)) : 0;
+        const cornerRadius = mode === 'large' ? 24 : 20;
+
+        return (
+          <svg
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+              borderRadius: 'inherit',
+              zIndex: 999,
+              overflow: 'visible'
+            }}
+          >
+            {/* Dim Track Stroke */}
+            <rect
+              x="1.5"
+              y="1.5"
+              width="calc(100% - 3px)"
+              height="calc(100% - 3px)"
+              rx={cornerRadius}
+              fill="none"
+              stroke="rgba(255, 149, 0, 0.15)"
+              strokeWidth="2.5"
+            />
+            {/* Active Depleting Orange Stroke with Synchronized Local Glow */}
+            <motion.rect
+              x="1.5"
+              y="1.5"
+              width="calc(100% - 3px)"
+              height="calc(100% - 3px)"
+              rx={cornerRadius}
+              fill="none"
+              stroke="#ff9500"
+              strokeWidth="2.5"
+              pathLength={1}
+              strokeDasharray="1 1"
+              initial={{ strokeDashoffset: 0 }}
+              animate={{ strokeDashoffset: 1 - progress }}
+              transition={{ duration: 0.4, ease: "linear" }}
+              style={{
+                filter: `drop-shadow(0px 0px ${Math.max(2, Math.round(progress * 6))}px #ff9500) drop-shadow(0px 0px ${Math.max(4, Math.round(progress * 12))}px rgba(255, 149, 0, ${0.4 + progress * 0.4}))`
+              }}
+            />
+          </svg>
+        );
+      })()}
+
       {/*Quickview*/}
-      {mode !== "large" && (mode === "quick" || (mode === "still" && showInfoWhenIdleEnabled) || (mode === "still" && (isPlaying || showPausedQuickView)) || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert) ? (
+      {mode !== "large" && (mode === "quick" || (mode === "still" && showInfoWhenIdleEnabled) || (mode === "still" && (isPlaying || showPausedQuickView || isTimerRunning || timerSeconds > 0)) || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert) ? (
         <AnimatePresence mode="wait">
-          {(isPlaying || showPausedQuickView) && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert ? (
+          {(isPlaying || showPausedQuickView) && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert && !isTimerRunning && timerSeconds === 0 ? (
             <motion.div
               key={spotifyTrack?.name ? `playing-${spotifyTrack.name}-${spotifyTrack.artist}` : "playing"}
               initial={{ opacity: 0, filter: 'blur(4px)', scale: 0.98 }}
@@ -1659,15 +2234,15 @@ export default function Island() {
                         if (window.electronAPI) window.electronAPI.setIgnoreMouseEvents(false, false);
                       }}
                       style={{
-                        background: 'none',
+                        height: 24,
+                        borderRadius: 12,
                         border: 'none',
-                        color: '#FFFFFF',
-                        cursor: 'pointer',
-                        padding: 0,
-                        marginLeft: 1,
+                        background: 'rgba(255,255,255,0.2)',
+                        backdropFilter: 'blur(10px)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        cursor: 'pointer',
                         flexShrink: 0,
                         overflow: 'hidden',
                         zIndex: 100,
@@ -1685,7 +2260,7 @@ export default function Island() {
             </motion.div>
           ) : (
             <motion.div
-              key={chargingAlert ? "charging" : alert ? "battery" : bluetoothAlert ? "bluetooth" : cameraAlert ? "camera" : microphoneAlert ? "microphone" : "time"}
+              key={chargingAlert ? "charging" : alert ? "battery" : bluetoothAlert ? "bluetooth" : cameraAlert ? "camera" : microphoneAlert ? "microphone" : (isTimerRunning || timerSeconds > 0) ? "timer" : "time"}
               initial={{ opacity: 0, filter: 'blur(4px)', scale: 0.98 }}
               animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }}
               exit={{ opacity: 0, filter: 'blur(4px)', scale: 0.98 }}
@@ -1702,7 +2277,7 @@ export default function Island() {
                   fontSize: 16,
                   fontWeight: 600,
                   margin: 0,
-                  color: chargingAlert ? "#6fff7bff" : alert ? "#ff3f3fff" : cameraAlert ? "#ffff00ff" : microphoneAlert ? "#ff9a00ff" : textColor,
+                  color: chargingAlert ? "#6fff7bff" : alert ? "#ff3f3fff" : cameraAlert ? "#ffff00ff" : microphoneAlert ? "#ff9a00ff" : (isTimerRunning || timerSeconds > 0) ? "#ff9500" : textColor,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1720,7 +2295,9 @@ export default function Island() {
                   <Mic size={20} color="#ff9a00" />
                 ) : volumeAlert ? (
                   volumeLevel === 0 ? <VolumeX size={20} color="#ff4d4d" /> : <Volume2 size={20} color="#4cc9f0" />
-                ) : bluetoothAlert ? <Headphones size={20} /> : time}
+                ) : bluetoothAlert ? <Headphones size={20} /> : (isTimerRunning || timerSeconds > 0) ? (
+                  <TimerCircleProgress progress={timerTotalDuration > 0 ? (timerSeconds / timerTotalDuration) : 0} size={18} strokeWidth={2.5} />
+                ) : time}
               </h1>
               <h1
                 className="text"
@@ -1742,12 +2319,16 @@ export default function Island() {
                           ? "#ff9a00ff"
                           : volumeAlert
                             ? "#4cc9f0ff"
-                            : `${textColor}`,
+                            : (isTimerRunning || timerSeconds > 0)
+                              ? "#ff9500"
+                              : `${textColor}`,
                   display: 'flex',
                   alignItems: 'center'
                 }}
               >
-                {alert === true ? (percent !== null ? `${percent}%` : '--') : chargingAlert === true ? (percent !== null ? `${percent}%` : '--') : standbyBorderEnabled ? (percent !== null ? `${percent}%` : '--') : cameraAlert ? "Camera" : microphoneAlert ? "Microphone" : volumeAlert ? `${volumeLevel}%` : bluetoothAlert ? "Connected" : (typeof weather.temp === "number" && !isNaN(weather.temp)) ? (
+                {alert === true ? (percent !== null ? `${percent}%` : '--') : chargingAlert === true ? (percent !== null ? `${percent}%` : '--') : standbyBorderEnabled ? (percent !== null ? `${percent}%` : '--') : cameraAlert ? "Camera" : microphoneAlert ? "Microphone" : volumeAlert ? `${volumeLevel}%` : bluetoothAlert ? "Connected" : (isTimerRunning || timerSeconds > 0) ? (
+                  <span>{formatTimerMMSS(timerSeconds)}</span>
+                ) : (typeof weather.temp === "number" && !isNaN(weather.temp)) ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <WeatherIcon status={weather.status} size={14} color={textColor} />
                     <span>{weather.temp}º</span>
@@ -1802,138 +2383,181 @@ export default function Island() {
               </div>
             )}
 
-            {/* Weather Dashboard */}
-            {currentTab === 1 && (
-              <div style={{
-                width: '90%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: '12px',
-                padding: '10px 0',
-                boxSizing: 'border-box'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', opacity: 0.8 }}>
-                      {localStorage.getItem("location") || weatherLocation || "Current Location"}
-                    </span>
-                    <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>
-                      {weather.status || "Fair"}
+            {/* Weather Dashboard (Redesigned per Image 2: 3D Animated Icons, Sky Glass Layout & 3-Day Forecast) */}
+            {currentTab === 1 && (() => {
+              const locName = localStorage.getItem("location") || weatherLocation || "CHATTOGRAM";
+              const tempVal = typeof weather.temp === "number" && !isNaN(weather.temp) ? weather.temp : 28;
+              const statusStr = weather.status || "Partly Sunny";
+              const humidityVal = weather.humidity || "65%";
+              const windVal = weather.wind || "12 km/h";
+              const precipVal = "2 mm";
+
+              return (
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  padding: '16px 20px',
+                  boxSizing: 'border-box',
+                  userSelect: 'none'
+                }}>
+                  {/* Top Header: 3D Weather Icon + Location Header on Left & Temp/Status on Right */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    {/* Left: 3D Layered Animated Weather Icon & Location Info */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Animated3DWeatherIcon status={statusStr} size={50} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: '#ffffff', letterSpacing: '0.5px', textTransform: 'uppercase', fontFamily: 'OpenRunde, system-ui, sans-serif' }}>
+                          {locName}
+                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.55)', fontFamily: 'OpenRunde, system-ui, sans-serif' }}>
+                          Updated 5m ago
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right: Giant Temp & Condition Title */}
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 30, fontWeight: 800, color: '#ffffff', fontFamily: 'OpenRunde, system-ui, sans-serif', lineHeight: 1, letterSpacing: '-0.5px' }}>
+                        {tempVal}°C
+                      </div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255, 255, 255, 0.75)', marginTop: 4, fontFamily: 'OpenRunde, system-ui, sans-serif' }}>
+                        {statusStr}
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <WeatherIcon status={weather.status} size={28} color={textColor} />
-                    <span style={{ fontSize: 26, fontWeight: 700 }}>
-                      {typeof weather.temp === "number" && !isNaN(weather.temp) ? `${weather.temp}°` : "--"}
-                    </span>
+
+                  {/* Middle Stats Row: Humidity | Precip | Wind */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, width: '100%' }}>
+                    <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '7px 4px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255, 255, 255, 0.6)' }}>Humidity</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', marginTop: 2 }}>{humidityVal}</div>
+                    </div>
+                    <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '7px 4px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255, 255, 255, 0.6)' }}>Precip</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', marginTop: 2 }}>{precipVal}</div>
+                    </div>
+                    <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '7px 4px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255, 255, 255, 0.6)' }}>Wind</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', marginTop: 2 }}>{windVal}</div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Row: 3-Day Forecast Glass Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, width: '100%' }}>
+                    {[
+                      { day: 'Today', icon: 'Partly Sunny', hi: `${tempVal}°`, lo: `${tempVal - 6}°`, rain: '5%' },
+                      { day: 'Tomorrow', icon: 'Partly Cloudy', hi: `${tempVal - 2}°`, lo: `${tempVal - 8}°`, rain: '15%' },
+                      { day: 'Wed', icon: 'Rain', hi: `${tempVal - 4}°`, lo: `${tempVal - 9}°`, rain: '80%' }
+                    ].map((fc) => (
+                      <motion.div
+                        key={fc.day}
+                        whileHover={{ y: -3, scale: 1.03 }}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          borderRadius: 14,
+                          padding: '8px 4px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)'
+                        }}
+                      >
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255, 255, 255, 0.75)' }}>{fc.day}</span>
+                        <div style={{ margin: '4px 0' }}>
+                          <Animated3DWeatherIcon status={fc.icon} size={22} />
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#ffffff' }}>{fc.hi}/{fc.lo}</span>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: '#4fc3f7', marginTop: 1 }}>{fc.rain}</span>
+                      </motion.div>
+                    ))}
                   </div>
                 </div>
+              );
+            })()}
+            {/* Overview / Retro Flip Clock Tab */}
+            {currentTab === 2 && (() => {
+              const d = new Date();
+              let h = d.getHours();
+              const m = String(d.getMinutes()).padStart(2, '0');
+              const ampm = h >= 12 ? 'PM' : 'AM';
+              h = h % 12;
+              h = h ? h : 12;
+              const hStr = String(h).padStart(2, '0');
+              const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+              const monthName = d.toLocaleDateString('en-US', { month: 'short' });
+              const dayNum = d.getDate();
+              const fullDateUpper = `${dayName.toUpperCase()}, ${monthName.toUpperCase()} ${dayNum}`;
 
+              return (
                 <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '8px',
                   width: '100%',
-                  marginTop: '4px'
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 18px 14px 18px',
+                  boxSizing: 'border-box',
+                  position: 'relative'
                 }}>
-                  <div style={{
-                    backgroundColor: `color-mix(in srgb, ${textColor}, transparent 94%)`,
-                    border: `1px solid color-mix(in srgb, ${textColor}, transparent 90%)`,
-                    borderRadius: '12px',
-                    padding: '8px 10px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <span style={{ fontSize: 10, opacity: 0.5, fontWeight: 600, textTransform: 'uppercase' }}>Feels Like</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>
-                      {typeof weather.temp === "number" ? `${weather.temp}°` : "--"}
-                    </span>
+                  {/* Top Right Corner Sleek Battery Pill */}
+                  <div style={{ position: 'absolute', top: 12, right: 16, zIndex: 50 }}>
+                    <SmallTopRightBattery percent={percent} charging={charging} />
                   </div>
 
-                  <div style={{
-                    backgroundColor: `color-mix(in srgb, ${textColor}, transparent 94%)`,
-                    border: `1px solid color-mix(in srgb, ${textColor}, transparent 90%)`,
-                    borderRadius: '12px',
-                    padding: '8px 10px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <span style={{ fontSize: 10, opacity: 0.5, fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Droplets size={10} /> Humidity
-                    </span>
-                    <span style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>
-                      {weather.humidity || "52%"}
-                    </span>
+                  {/* Center Retro Mechanical Split-Flap Flip Clock */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 10 }}>
+                    <FlipCard digit={hStr} />
+
+                    {/* Glowing Orange Colon Dots */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', justifyContent: 'center' }}>
+                      <motion.div
+                        animate={{ opacity: [1, 0.35, 1], scale: [1, 1.15, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                        style={{
+                          width: 11,
+                          height: 11,
+                          borderRadius: '50%',
+                          background: '#ff9500',
+                          boxShadow: '0 0 12px #ff9500'
+                        }}
+                      />
+                      <motion.div
+                        animate={{ opacity: [1, 0.35, 1], scale: [1, 1.15, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                        style={{
+                          width: 11,
+                          height: 11,
+                          borderRadius: '50%',
+                          background: '#ff9500',
+                          boxShadow: '0 0 12px #ff9500'
+                        }}
+                      />
+                    </div>
+
+                    <FlipCard digit={m} />
                   </div>
 
+                  {/* Bottom Caption: FLIP CLOCK • MON, JUL 27 • AM */}
                   <div style={{
-                    backgroundColor: `color-mix(in srgb, ${textColor}, transparent 94%)`,
-                    border: `1px solid color-mix(in srgb, ${textColor}, transparent 90%)`,
-                    borderRadius: '12px',
-                    padding: '8px 10px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    textAlign: 'center',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'rgba(255,255,255,0.65)',
+                    letterSpacing: '0.9px',
+                    fontFamily: 'OpenRunde, system-ui, sans-serif',
+                    textTransform: 'uppercase'
                   }}>
-                    <span style={{ fontSize: 10, opacity: 0.5, fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Wind size={10} /> Wind
-                    </span>
-                    <span style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>
-                      {weather.wind || "8 mph"}
-                    </span>
+                    FLIP CLOCK • {fullDateUpper} • {ampm}
                   </div>
                 </div>
-              </div>
-            )}
-            {/*Overview tab*/}
-            {currentTab === 2 && (
-              <>
-                <div id="battery" style={{ animation: 'none' }}>
-                  <div
-                    id="battery-bar"
-                    style={{
-                      backgroundColor: localStorage.getItem('text-color'),
-                      color: bgColor
-                    }}
-                  >
-                    <h1 className="text" style={{ animation: 'none', display: 'flex', alignItems: 'center', gap: 2 }}>
-                      {charging && <Zap size={16} />}
-                      <span>{percent}%</span>
-                    </h1>
-                  </div>
-                </div>
-                <h1
-                  className="text"
-                  style={{
-                    fontSize: 15,
-                    left: 25,
-                    top: 14,
-                    position: "absolute",
-                    animation: 'none'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <WeatherIcon status={weather.status} size={16} color={textColor} />
-                    <span>{typeof weather.temp === "number" && !isNaN(weather.temp) ? weather.temp : "??"}º</span>
-                  </div>
-                </h1>
-                <div id="date">
-                  <h1 className="text" style={{ fontSize: 50, animation: 'none' }}>
-                    {time}
-                  </h1>
-                  <h2 className="text" style={{ fontSize: 15, animation: 'none' }}>
-                    {formatDateShort()}
-                  </h2>
-                </div>
-              </>
-            )}
+              );
+            })()}
 
             {/* Now Playing*/}
             {currentTab === 3 && (
@@ -2100,51 +2724,198 @@ export default function Island() {
             )}
 
             {/* Calendar Tab */}
-            {currentTab === 4 && (
-              <div className="calendar-container">
-                <div className="calendar-header">
-                  <button
-                    className="calendar-nav-btn"
-                    onClick={() => {
-                      setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+            {currentTab === 4 && (() => {
+              const today = new Date();
+              const selectedYear = calendarDate.getFullYear();
+              const selectedMonth = calendarDate.getMonth();
+              const monthNameUpper = calendarDate.toLocaleDateString('en-US', { month: 'long' }).toUpperCase();
+              const todayWeekdayFull = today.toLocaleDateString('en-US', { weekday: 'long' });
+              const days = getCalendarDays(selectedYear, selectedMonth);
+
+              return (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '16px 18px',
+                    boxSizing: 'border-box',
+                    gap: 16,
+                    userSelect: 'none'
+                  }}
+                >
+                  {/* Left Column: Hero Date Card */}
+                  <div
+                    style={{
+                      width: 128,
+                      height: 152,
+                      background: '#1b1b1f',
+                      borderRadius: 16,
+                      border: '1.5px solid #2c2c34',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+                      padding: '12px 10px',
+                      boxSizing: 'border-box',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexShrink: 0
                     }}
                   >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <h3 className="calendar-month-title">
-                    {calendarDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-                  </h3>
-                  <button
-                    className="calendar-nav-btn"
-                    onClick={() => {
-                      setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-                    }}
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-                <div className="calendar-grid">
-                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
-                    <div key={`cal-h-${idx}`} className="calendar-day-header">{day}</div>
-                  ))}
-                  {getCalendarDays(calendarDate.getFullYear(), calendarDate.getMonth()).map((item, idx) => {
-                    const today = new Date();
-                    const isToday = item.isCurrentMonth &&
-                      item.day === today.getDate() &&
-                      calendarDate.getMonth() === today.getMonth() &&
-                      calendarDate.getFullYear() === today.getFullYear();
-                    return (
+                    {/* Month & Year */}
+                    <div style={{ textAlign: 'center' }}>
                       <div
-                        key={`cal-d-${idx}`}
-                        className={`calendar-day-cell ${!item.isCurrentMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}`}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 800,
+                          color: '#ff3b30',
+                          letterSpacing: '1.2px',
+                          textTransform: 'uppercase',
+                          fontFamily: 'OpenRunde, system-ui, sans-serif'
+                        }}
                       >
-                        {item.day}
+                        {monthNameUpper}
                       </div>
-                    );
-                  })}
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: 'rgba(255,255,255,0.45)',
+                          marginTop: 1,
+                          fontFamily: 'OpenRunde, system-ui, sans-serif'
+                        }}
+                      >
+                        {selectedYear}
+                      </div>
+                    </div>
+
+                    {/* Giant Day Number */}
+                    <div
+                      style={{
+                        fontSize: 54,
+                        fontWeight: 800,
+                        color: '#ffffff',
+                        fontFamily: 'OpenRunde, system-ui, sans-serif',
+                        letterSpacing: '-2px',
+                        lineHeight: 1
+                      }}
+                    >
+                      {today.getDate()}
+                    </div>
+
+                    {/* Full Weekday Name */}
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: 'rgba(255,255,255,0.65)',
+                        fontFamily: 'OpenRunde, system-ui, sans-serif'
+                      }}
+                    >
+                      {todayWeekdayFull}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Month Grid */}
+                  <div style={{ flex: 1, height: 152, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    {/* Calendar Month Nav Controls (Compact) */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
+                      <button
+                        onClick={() => setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: 2 }}
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.85)', fontFamily: 'OpenRunde, system-ui, sans-serif' }}>
+                        {calendarDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                      </span>
+                      <button
+                        onClick={() => setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: 2 }}
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+
+                    {/* Weekday Header (S M T W T F S) - Red for S & S */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, textAlign: 'center' }}>
+                      {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => {
+                        const isWeekend = idx === 0 || idx === 6;
+                        return (
+                          <div
+                            key={`cal-h-${idx}`}
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 800,
+                              color: isWeekend ? '#ff3b30' : 'rgba(255,255,255,0.6)',
+                              fontFamily: 'OpenRunde, system-ui, sans-serif'
+                            }}
+                          >
+                            {day}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Date Days Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center' }}>
+                      {days.map((item, idx) => {
+                        const col = idx % 7;
+                        const isWeekend = col === 0 || col === 6;
+                        const isToday = item.isCurrentMonth &&
+                          item.day === today.getDate() &&
+                          selectedMonth === today.getMonth() &&
+                          selectedYear === today.getFullYear();
+
+                        let textColor = isWeekend ? '#ff3b30' : '#ffffff';
+                        if (!item.isCurrentMonth) {
+                          textColor = isWeekend ? 'rgba(255, 59, 48, 0.3)' : 'rgba(255, 255, 255, 0.25)';
+                        }
+
+                        return (
+                          <div
+                            key={`cal-d-${idx}`}
+                            style={{
+                              height: 22,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 12,
+                              fontWeight: isToday ? 800 : 600,
+                              fontFamily: 'OpenRunde, system-ui, sans-serif',
+                              color: isToday ? '#ffffff' : textColor
+                            }}
+                          >
+                            {isToday ? (
+                              <div
+                                style={{
+                                  width: 23,
+                                  height: 23,
+                                  borderRadius: '50%',
+                                  background: '#c42b27',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#ffffff',
+                                  boxShadow: '0 2px 6px rgba(196, 43, 39, 0.6)'
+                                }}
+                              >
+                                {item.day}
+                              </div>
+                            ) : (
+                              item.day
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Notifications Tab */}
             {currentTab === 5 && (
@@ -2361,104 +3132,218 @@ export default function Island() {
               </div>
             )}
 
-            {/* Timer / Stopwatch */}
+            {/* Timer Tab (Stopwatch Removed, Modern States & Dynamic Island Styling) */}
             {currentTab === 10 && (
               <div style={{
-                width: '90%',
+                width: '100%',
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                padding: '10px 0',
-                boxSizing: 'border-box'
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                boxSizing: 'border-box',
+                userSelect: 'none'
               }}>
-                <div style={{
-                  display: 'flex',
-                  backgroundColor: `color-mix(in srgb, ${textColor}, transparent 94%)`,
-                  borderRadius: '10px',
-                  padding: '2px',
-                  border: `1px solid color-mix(in srgb, ${textColor}, transparent 90%)`
-                }}>
-                  <button
-                    onClick={() => { setTimerMode("stopwatch"); setIsTimerRunning(false); setTimerSeconds(0); }}
-                    style={{
-                      border: 'none',
-                      background: timerMode === "stopwatch" ? textColor : 'transparent',
-                      color: timerMode === "stopwatch" ? bgColor : textColor,
-                      borderRadius: '8px',
-                      padding: '4px 14px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Stopwatch
-                  </button>
-                  <button
-                    onClick={() => { setTimerMode("timer"); setIsTimerRunning(false); setTimerSeconds(300); }}
-                    style={{
-                      border: 'none',
-                      background: timerMode === "timer" ? textColor : 'transparent',
-                      color: timerMode === "timer" ? bgColor : textColor,
-                      borderRadius: '8px',
-                      padding: '4px 14px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Timer (5m)
-                  </button>
-                </div>
+                {!isTimerRunning && timerSeconds === 0 ? (
+                  /* STATE 1: Select Timer Setup Screen (Image 2) */
+                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    {/* Title Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 0 }}>
+                      <AlarmClock size={16} color="#ffffff" />
+                      <span style={{ fontSize: 15, fontWeight: 700, color: '#ffffff', fontFamily: 'OpenRunde, system-ui, sans-serif' }}>
+                        Select Timer
+                      </span>
+                    </div>
 
-                <div style={{ fontSize: 32, fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: textColor }}>
-                  {Math.floor(timerSeconds / 3600).toString().padStart(2, '0')}:
-                  {Math.floor((timerSeconds % 3600) / 60).toString().padStart(2, '0')}:
-                  {(timerSeconds % 60).toString().padStart(2, '0')}
-                </div>
+                    {/* Preset Chips Row: 15m, 30m, 60m, 100m */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, width: '100%' }}>
+                      {[
+                        { label: '15m', sec: 900 },
+                        { label: '30m', sec: 1800 },
+                        { label: '60m', sec: 3600 },
+                        { label: '100m', sec: 6000 }
+                      ].map((preset) => (
+                        <motion.button
+                          key={preset.label}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => {
+                            setTimerTotalDuration(preset.sec);
+                            setTimerSeconds(preset.sec);
+                            setIsTimerRunning(true);
+                          }}
+                          style={{
+                            background: '#222227',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            borderRadius: 14,
+                            height: 46,
+                            color: '#ffffff',
+                            fontSize: 14,
+                            fontWeight: 700,
+                            fontFamily: 'OpenRunde, system-ui, sans-serif',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                          }}
+                        >
+                          {preset.label}
+                        </motion.button>
+                      ))}
+                    </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <button
-                    onClick={() => setIsTimerRunning(!isTimerRunning)}
-                    style={{
-                      backgroundColor: textColor,
-                      color: bgColor,
-                      border: 'none',
-                      borderRadius: '20px',
-                      padding: '6px 16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      fontWeight: 600,
-                      fontSize: '12px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {isTimerRunning ? <Pause size={14} /> : <Play size={14} />}
-                    <span>{isTimerRunning ? "Pause" : "Start"}</span>
-                  </button>
-                  <button
-                    onClick={() => { setIsTimerRunning(false); setTimerSeconds(timerMode === "timer" ? 300 : 0); }}
-                    style={{
-                      backgroundColor: `color-mix(in srgb, ${textColor}, transparent 88%)`,
-                      color: textColor,
-                      border: 'none',
-                      borderRadius: '20px',
-                      padding: '6px 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontWeight: 600,
-                      fontSize: '12px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <RotateCcw size={14} />
-                    <span>Reset</span>
-                  </button>
-                </div>
+                    {/* Bottom Row: Custom Time Picker (-) 05:00 (+) & Vibrant Orange START Button */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, width: '100%', marginBottom: 0 }}>
+                      {/* Left: Custom Time Picker Pill */}
+                      <div style={{
+                        background: '#222227',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: 14,
+                        height: 48,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0 14px',
+                        boxSizing: 'border-box',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                      }}>
+                        <button
+                          onClick={() => setCustomTimerSetup(prev => Math.max(60, prev - 60))}
+                          style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 20, fontWeight: 700, cursor: 'pointer', padding: '0 2px' }}
+                        >
+                          -
+                        </button>
+                        <span style={{ fontSize: 16, fontWeight: 800, color: '#ffffff', fontFamily: 'OpenRunde, system-ui, sans-serif' }}>
+                          {formatTimerMMSS(customTimerSetup)}
+                        </span>
+                        <button
+                          onClick={() => setCustomTimerSetup(prev => prev + 60)}
+                          style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 20, fontWeight: 700, cursor: 'pointer', padding: '0 2px' }}
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* Right: Big Orange START Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          setTimerTotalDuration(customTimerSetup);
+                          setTimerSeconds(customTimerSetup);
+                          setIsTimerRunning(true);
+                        }}
+                        style={{
+                          background: '#ff9500',
+                          border: 'none',
+                          borderRadius: 14,
+                          height: 48,
+                          color: '#ffffff',
+                          fontSize: 15,
+                          fontWeight: 800,
+                          letterSpacing: '1px',
+                          fontFamily: 'OpenRunde, system-ui, sans-serif',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 16px rgba(255, 149, 0, 0.45)',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        START
+                      </motion.button>
+                    </div>
+                  </div>
+                ) : (
+                  /* STATE 2: Active / Running / Paused Timer Screen (Image 4) */
+                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
+                    {/* Top Center: Bell / Total Duration Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: 0.6 }}>
+                      <BellOff size={13} color="#ffffff" />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#ffffff', fontFamily: 'OpenRunde, system-ui, sans-serif' }}>
+                        {formatTimerMMSS(timerTotalDuration)}
+                      </span>
+                    </div>
+
+                    {/* Center Section: Left Pause/Play | Center Giant Time | Right Cancel */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 10px' }}>
+                      {/* Left: Glass Circle Pause/Play Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.08 }}
+                        whileTap={{ scale: 0.92 }}
+                        onClick={() => setIsTimerRunning(!isTimerRunning)}
+                        style={{
+                          width: 52,
+                          height: 52,
+                          borderRadius: '50%',
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          border: '1px solid rgba(255, 255, 255, 0.25)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 14px rgba(0,0,0,0.3)'
+                        }}
+                      >
+                        {isTimerRunning ? (
+                          <Pause size={22} color="#ffffff" fill="#ffffff" />
+                        ) : (
+                          <Play size={22} color="#ffffff" fill="#ffffff" style={{ marginLeft: 2 }} />
+                        )}
+                      </motion.button>
+
+                      {/* Center: Giant Countdown Display & Subtitle */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{
+                          fontSize: 42,
+                          fontWeight: 800,
+                          color: '#ffffff',
+                          fontFamily: 'OpenRunde, system-ui, sans-serif',
+                          letterSpacing: '-1px',
+                          lineHeight: 1
+                        }}>
+                          {formatTimerMMSS(timerSeconds)}
+                        </div>
+                        <div style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: 'rgba(255,255,255,0.5)',
+                          fontFamily: 'OpenRunde, system-ui, sans-serif',
+                          marginTop: 4
+                        }}>
+                          Timer
+                        </div>
+                      </div>
+
+                      {/* Right: Red Circle Cancel/Reset Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.08 }}
+                        whileTap={{ scale: 0.92 }}
+                        onClick={() => {
+                          setIsTimerRunning(false);
+                          setTimerSeconds(0);
+                        }}
+                        style={{
+                          width: 52,
+                          height: 52,
+                          borderRadius: '50%',
+                          background: 'rgba(255, 59, 48, 0.25)',
+                          border: '1px solid rgba(255, 59, 48, 0.5)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 14px rgba(255, 59, 48, 0.25)'
+                        }}
+                      >
+                        <X size={22} color="#ff3b30" />
+                      </motion.button>
+                    </div>
+
+                    {/* Bottom Spacer */}
+                    <div style={{ height: 2 }} />
+                  </div>
+                )}
               </div>
             )}
 
