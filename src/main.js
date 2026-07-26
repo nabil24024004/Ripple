@@ -8,9 +8,11 @@ const {
   Tray,
   Menu,
   nativeImage,
+  clipboard
 } = require("electron");
 const path = require("node:path");
 const fs = require("fs");
+const os = require("os");
 
 if (process.platform === "linux") {
   app.commandLine.appendSwitch("enable-transparent-visuals");
@@ -20,7 +22,38 @@ if (process.platform === "linux") {
 let tray = null;
 let mainWindow = null;
 
-const { exec, spawn } = require('child_process');
+// --- Logging System ---
+function getLogFilePath() {
+  try {
+    return path.join(app.getPath("userData"), "ripple-island.log");
+  } catch (_) {
+    return path.join(process.cwd(), "ripple-island.log");
+  }
+}
+
+function logToFile(msg, err = null) {
+  const timestamp = new Date().toISOString();
+  const logLine = `[${timestamp}] ${msg}${err ? ` | Error: ${err.stack || err}` : ""}\n`;
+  console.log(logLine.trim());
+  try {
+    const logPath = getLogFilePath();
+    fs.appendFileSync(logPath, logLine, "utf8");
+  } catch (_) {}
+}
+
+process.on("uncaughtException", (err) => {
+  logToFile("UNCAUGHT EXCEPTION (Main Process)", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  logToFile("UNHANDLED REJECTION (Main Process)", reason);
+});
+
+const { exec, execFile, spawn } = require('child_process');
+
+function getPowershellEncodedCommand(script) {
+  return Buffer.from(script, "utf16le").toString("base64");
+}
 
 // --- App discovery providers ---
 
@@ -261,12 +294,26 @@ function launchWindows(input) {
   }
 }
 
+ipcMain.handle("log-message", (event, level, msg, details) => {
+  logToFile(`[RENDERER ${String(level).toUpperCase()}] ${msg} ${details ? JSON.stringify(details) : ""}`);
+});
+
 ipcMain.handle("set-ignore-mouse-events", (event, ignore, forward) => {
-  if (mainWindow) {
-    if (process.platform !== "linux") {
-      mainWindow.setIgnoreMouseEvents(ignore, { forward: forward || false });
-    } else {
-      mainWindow.setIgnoreMouseEvents(ignore);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      if (process.platform !== "linux") {
+        const useForward = forward !== undefined ? forward : ignore;
+        mainWindow.setIgnoreMouseEvents(ignore, { forward: useForward });
+        logToFile(`setIgnoreMouseEvents(${ignore}, forward=${useForward}) executed`);
+      } else {
+        mainWindow.setIgnoreMouseEvents(ignore);
+        logToFile(`setIgnoreMouseEvents(${ignore}) executed (linux)`);
+      }
+    } catch (e) {
+      logToFile("Error in setIgnoreMouseEvents, falling back to forward=true", e);
+      try {
+        mainWindow.setIgnoreMouseEvents(true, { forward: true });
+      } catch (_) {}
     }
   }
 });
@@ -433,7 +480,7 @@ const createWindow = () => {
     alwaysOnTop: true,
     resizable: false,
     frame: false,
-    ...(isWindows ? {} : { thickFrame: false }),
+    ...(isWindows ? { thickFrame: false } : {}),
     hasShadow: false,
     skipTaskbar: true,
     icon: getIconPath(),
@@ -542,78 +589,204 @@ app.whenReady().then(() => {
     console.error("Failed to create tray:", e);
   }
 });
+const psMediaScriptPath = path.join(app.getPath("userData"), "get-media.ps1");
+const psMediaScriptContent = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+Add-Type -AssemblyName System.Drawing
+
+$asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { 
+    $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetGenericArguments().Count -eq 1 -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name.StartsWith('IAsyncOperation') 
+}[0]
+
+function Await-Operation($asyncOp, $type) {
+    if (-not $asyncOp) { return $null }
+    try {
+        $task = $asTaskGeneric.MakeGenericMethod($type).Invoke($null, @($asyncOp))
+        $task.Wait()
+        return $task.Result
+    } catch {
+        return $null
+    }
+}
+
+function Get-AppIconBase64($appId) {
+    try {
+        $proc = $null
+        if ($appId) {
+            $cleanName = $appId.Split('!')[-1].Replace('.exe','')
+            $proc = Get-Process | Where-Object { $_.ProcessName -eq $cleanName -or $cleanName -like "*$($_.ProcessName)*" } | Select-Object -First 1
+        }
+        if (-not $proc) {
+            $proc = Get-Process | Where-Object { $_.MainWindowTitle -and ($_.ProcessName -match "chrome|msedge|brave|firefox|spotify|vlc|music") } | Select-Object -First 1
+        }
+        if ($proc) {
+            $path = $proc.MainModule.FileName
+            if ($path) {
+                $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($path)
+                if ($icon) {
+                    $bmp = $icon.ToBitmap()
+                    $ms = New-Object System.IO.MemoryStream
+                    $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+                    $bytes = $ms.ToArray()
+                    $ms.Close()
+                    $bmp.Dispose()
+                    $icon.Dispose()
+                    if ($bytes.Length -gt 0) {
+                        return "data:image/png;base64," + [Convert]::ToBase64String($bytes)
+                    }
+                }
+            }
+        }
+    } catch {}
+    return ""
+}
+
+$inputInterface = [Windows.Storage.Streams.IInputStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$asStreamMethod = [System.IO.WindowsRuntimeStreamExtensions].GetMethod('AsStreamForRead', [type[]]@($inputInterface))
+
+$mgrType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
+$propsType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties, Windows.Media.Control, ContentType = WindowsRuntime]
+$streamType = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$streamRefType = [Windows.Storage.Streams.IRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+
+$asyncOp = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]::RequestAsync()
+$manager = Await-Operation $asyncOp $mgrType
+
+if ($manager) {
+    $session = $manager.GetCurrentSession()
+    if (-not $session) {
+        $sessions = $manager.GetSessions()
+        if ($sessions -and $sessions.Count -gt 0) {
+            $session = $sessions | Where-Object { $_.GetPlaybackInfo().PlaybackStatus -eq [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus]::Playing } | Select-Object -First 1
+            if (-not $session) { $session = $sessions[0] }
+        }
+    }
+    if ($session) {
+        $propsOp = $session.TryGetMediaPropertiesAsync()
+        $props = Await-Operation $propsOp $propsType
+        $playback = $session.GetPlaybackInfo()
+        $status = if ($playback) { $playback.PlaybackStatus.ToString().ToLower() } else { "stopped" }
+
+        $timeline = $session.GetTimelineProperties()
+        $basePos = if ($timeline -and $timeline.Position) { $timeline.Position.TotalSeconds } else { 0 }
+        if ($status -eq "playing" -and $timeline -and $timeline.LastUpdatedTime) {
+            $elapsed = ([DateTimeOffset]::UtcNow - $timeline.LastUpdatedTime).TotalSeconds
+            if ($elapsed -gt 0 -and $elapsed -lt 86400) {
+                $basePos += $elapsed
+            }
+        }
+        $duration = if ($timeline -and $timeline.EndTime) { [math]::Round($timeline.EndTime.TotalSeconds) } else { 0 }
+        if ($duration -gt 0 -and $basePos -gt $duration) { $basePos = $duration }
+        $position = [math]::Round($basePos)
+
+        $sourceApp = $session.SourceAppUserModelId
+        $artwork = ""
+
+        if ($props -and $props.Thumbnail) {
+            try {
+                $thumbOp = $props.Thumbnail.OpenReadAsync()
+                $stream = Await-Operation $thumbOp $streamType
+                if (-not $stream) {
+                    $stream = Await-Operation $thumbOp $streamRefType
+                }
+                if ($stream) {
+                    $netStream = $asStreamMethod.Invoke($null, @($stream))
+                    if ($netStream) {
+                        $mem = New-Object System.IO.MemoryStream
+                        $netStream.CopyTo($mem)
+                        $bytes = $mem.ToArray()
+                        $mem.Close()
+                        if ($bytes.Length -gt 0) {
+                            $artwork = "data:image/png;base64," + [Convert]::ToBase64String($bytes)
+                        }
+                    }
+                }
+            } catch {}
+        }
+
+        if (-not $artwork) {
+            $artwork = Get-AppIconBase64 $sourceApp
+        }
+
+        $info = @{
+            Title = if ($props) { $props.Title } else { "" }
+            Artist = if ($props) { $props.Artist } else { "" }
+            Album = if ($props) { $props.AlbumTitle } else { "" }
+            Status = $status
+            Source = $sourceApp
+            Artwork = $artwork
+            Position = $position
+            Duration = $duration
+        }
+        $info | ConvertTo-Json -Compress
+        exit
+    }
+}
+Write-Output "null"
+`;
+
+try {
+  fs.writeFileSync(psMediaScriptPath, psMediaScriptContent, "utf8");
+} catch (e) {
+  console.error("Failed to write get-media.ps1 script:", e);
+}
 
 ipcMain.handle("get-system-media", async () => {
   return new Promise((resolve) => {
     const platform = process.platform;
-
     if (platform === "darwin") {
       const script = `
-            tell application "System Events"
-                set spotifyRunning to (name of every process) contains "Spotify"
-                set musicRunning to (name of every process) contains "Music"
+        tell application "System Events"
+            set spotifyRunning to (name of every process) contains "Spotify"
+            set musicRunning to (name of every process) contains "Music"
+        end tell
+        if spotifyRunning then
+            tell application "Spotify"
+                if player state is playing then
+                    set trackName to name of current track
+                    set artistName to artist of current track
+                    set albumName to album of current track
+                    set artworkUrl to artwork url of current track
+                    set playerState to player state as string
+                    return trackName & "||" & artistName & "||" & albumName & "||" & artworkUrl & "||" & playerState & "||Spotify"
+                end if
             end tell
-            if spotifyRunning then
-                try
-                    tell application "Spotify"
-                        set mediaState to player state as string
-                        set songName to name of current track
-                        set artistName to artist of current track
-                        set albumName to album of current track
-                        try
-                            set artUrl to artwork url of current track
-                        on error
-                            set artUrl to ""
-                        end try
-                    end tell
-                    return "Spotify" & "||" & mediaState & "||" & songName & "||" & artistName & "||" & albumName & "||" & artUrl
-                on error
-                    return "Error"
-                end try
-            else if musicRunning then
-                try
-                    tell application "Music" 
-                        set mediaState to player state as string
-                        set songName to name of current track
-                        set artistName to artist of current track
-                        set albumName to album of current track
-                    end tell
-                    return "Music" & "||" & mediaState & "||" & songName & "||" & artistName & "||" & albumName & "||" & "" 
-                on error
-                    return "Error"
-                end try
-            else
-                return "None"
-            end if
-            `;
-      exec(`osascript -e '${script}'`, (error, stdout) => {
-        if (error) {
+        else if musicRunning then
+            tell application "Music"
+                if player state is playing then
+                    set trackName to name of current track
+                    set artistName to artist of current track
+                    set albumName to album of current track
+                    set playerState to player state as string
+                    return trackName & "||" & artistName & "||" & albumName & "||||" & playerState & "||Music"
+                end if
+            end tell
+        end if
+        return "null"
+      `;
+      execFile("osascript", ["-e", script], (error, stdout) => {
+        if (error || !stdout || stdout.trim() === "null") {
           return resolve(null);
         }
-        const output = stdout.trim();
-
-        if (!output || output === "None" || output === "Error")
-          return resolve(null);
-
-        const parts = output.split("||");
-        if (parts.length >= 4) {
+        const parts = stdout.trim().split("||");
+        if (parts.length >= 6) {
           resolve({
-            name: parts[2],
-            artist: parts[3],
-            album: parts[4],
-            artwork_url: parts[5] || null,
-            state: parts[1] === "playing" ? "playing" : "paused",
-            source: parts[0],
+            name: parts[0],
+            artist: parts[1],
+            album: parts[2],
+            artwork_url: parts[3] || null,
+            state: parts[4] === "playing" ? "playing" : "paused",
+            source: parts[5],
           });
         } else {
           resolve(null);
         }
       });
     } else if (platform === "win32") {
-      const psScript = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Runtime.WindowsRuntime; $manager = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]::RequestAsync().GetAwaiter().GetResult(); $session = $manager.GetCurrentSession(); if ($session) { $props = $session.TryGetMediaPropertiesAsync().GetAwaiter().GetResult(); $playback = $session.GetPlaybackInfo(); $status = $playback.PlaybackStatus; $thumbnail = $props.Thumbnail; $artwork = ''; if ($thumbnail) { try { $stream = $thumbnail.OpenReadAsync().GetAwaiter().GetResult(); $buffer = New-Object byte[] $stream.Size; $reader = New-Object Windows.Storage.Streams.DataReader $stream; $reader.LoadAsync($stream.Size).GetAwaiter().GetResult() | Out-Null; $reader.ReadBytes($buffer); $artwork = 'data:image/png;base64,' + [Convert]::ToBase64String($buffer); $reader.Close(); $stream.Close(); } catch { } } $info = @{ Title = $props.Title; Artist = $props.Artist; Album = $props.AlbumTitle; Status = $status.ToString().ToLower(); Source = $session.SourceAppUserModelId; Artwork = $artwork }; return $info | ConvertTo-Json -Compress; } return 'null';`;
-      exec(
-        `powershell -NoProfile -Command "${psScript}"`,
-        { maxBuffer: 5 * 1024 * 1024, encoding: "utf8" },
+      execFile(
+        "powershell",
+        ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", psMediaScriptPath],
+        { maxBuffer: 10 * 1024 * 1024, encoding: "utf8" },
         (error, stdout) => {
           if (
             error ||
@@ -622,7 +795,7 @@ ipcMain.handle("get-system-media", async () => {
             stdout.trim() === "'null'"
           ) {
             exec(
-              `powershell -NoProfile -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Process | Where-Object {$_.ProcessName -eq 'Spotify'} | Select-Object MainWindowTitle"`,
+              `powershell -NoProfile -Command "Get-Process | Where-Object {$_.ProcessName -eq 'Spotify'} | Select-Object MainWindowTitle"`,
               { encoding: "utf8" },
               (err, out) => {
                 if (err || !out) return resolve(null);
@@ -631,13 +804,20 @@ ipcMain.handle("get-system-media", async () => {
                   .find((l) => l.includes("-"))
                   ?.trim();
                 if (title) {
-                  const [artist, ...songParts] = title.split(" - ");
-                  const song = songParts.join(" - ");
+                  const songParts = title.split(" - ");
+                  let artist = "Unknown";
+                  let song = title;
+                  if (songParts.length > 1) {
+                    artist = songParts[0].trim();
+                    song = songParts.slice(1).join(" - ").trim();
+                  }
                   resolve({
                     name: song || title,
                     artist: artist || "Unknown",
                     state: "playing",
                     source: "Spotify",
+                    position: 0,
+                    duration: 0
                   });
                 } else {
                   resolve(null);
@@ -648,7 +828,10 @@ ipcMain.handle("get-system-media", async () => {
           }
 
           try {
-            const data = JSON.parse(stdout);
+            const data = JSON.parse(stdout.trim());
+            if (!data || (!data.Title && !data.Artist)) {
+              return resolve(null);
+            }
             resolve({
               name: data.Title || "Unknown Title",
               artist: data.Artist || "Unknown Artist",
@@ -656,6 +839,8 @@ ipcMain.handle("get-system-media", async () => {
               artwork_url: data.Artwork || null,
               state: data.Status === "playing" ? "playing" : "paused",
               source: data.Source || "System",
+              position: Number(data.Position) || 0,
+              duration: Number(data.Duration) || 0
             });
           } catch (e) {
             resolve(null);
@@ -795,10 +980,111 @@ ipcMain.handle("control-system-media", async (event, command) => {
             tell application "Music" to ${command} track
         end if
         `;
-    exec(`osascript -e '${script}'`);
+    execFile("osascript", ["-e", script]);
+  } else if (platform === "win32") {
+    let vkCode = "0xCD"; // VK_MEDIA_PLAY_PAUSE
+    if (command === "next") vkCode = "0xB0"; // VK_MEDIA_NEXT_TRACK
+    if (command === "previous") vkCode = "0xB1"; // VK_MEDIA_PREV_TRACK
+
+    logToFile(`Executing media control: ${command} (${vkCode})`);
+
+    const psScript = `
+$type = '[DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);'
+$MediaKey = Add-Type -MemberDefinition $type -Name "WinMediaKey" -Namespace "WinAPI" -PassThru
+$MediaKey::keybd_event(${vkCode}, 0, 0, [UIntPtr]::Zero)
+$MediaKey::keybd_event(${vkCode}, 0, 2, [UIntPtr]::Zero)
+`;
+    const encCmd = getPowershellEncodedCommand(psScript);
+    exec(`powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encCmd}`, (err) => {
+      if (err) logToFile("Media control error:", err);
+    });
   } else if (platform === "linux") {
     let cmd = command;
     if (command === "playpause") cmd = "play-pause";
     exec(`playerctl ${cmd}`);
   }
+});
+
+let previousCpus = null;
+
+function getCpuLoad() {
+  const cpus = os.cpus();
+  if (!cpus || cpus.length === 0) return 0;
+  if (!previousCpus || previousCpus.length !== cpus.length) {
+    previousCpus = cpus;
+    return 0;
+  }
+  let totalIdle = 0;
+  let totalTick = 0;
+  for (let i = 0; i < cpus.length; i++) {
+    const cpu = cpus[i];
+    const prevCpu = previousCpus[i];
+    let idle = cpu.times.idle - prevCpu.times.idle;
+    let total = 0;
+    for (const type in cpu.times) {
+      total += cpu.times[type] - prevCpu.times[type];
+    }
+    totalIdle += idle;
+    totalTick += total;
+  }
+  previousCpus = cpus;
+  if (totalTick === 0) return 0;
+  const idlePerc = totalIdle / totalTick;
+  return Math.max(0, Math.min(100, Math.round((1 - idlePerc) * 100)));
+}
+
+function getRamLoad() {
+  const total = os.totalmem();
+  const free = os.freemem();
+  if (!total) return 0;
+  return Math.max(0, Math.min(100, Math.round(((total - free) / total) * 100)));
+}
+
+ipcMain.handle("get-system-metrics", async () => {
+  return {
+    cpu: getCpuLoad(),
+    ram: getRamLoad()
+  };
+});
+
+ipcMain.handle("get-clipboard-text", async () => {
+  try {
+    return clipboard.readText();
+  } catch {
+    return "";
+  }
+});
+
+ipcMain.handle("write-clipboard-text", async (event, text) => {
+  try {
+    if (text) {
+      clipboard.writeText(text);
+    } else {
+      clipboard.clear();
+    }
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle("clear-clipboard", async () => {
+  try {
+    clipboard.clear();
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle("control-system-volume", async (event, action) => {
+  if (process.platform === "win32") {
+    let vkCode = "0xAF"; // VK_VOLUME_UP
+    if (action === "down") vkCode = "0xAE"; // VK_VOLUME_DOWN
+    if (action === "mute") vkCode = "0xAD"; // VK_VOLUME_MUTE
+    const psScript = `[Void][System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); $type = '[DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);'; $MediaKey = Add-Type -MemberDefinition $type -Name "WinMediaKey" -Namespace "WinAPI" -PassThru; $MediaKey::keybd_event(${vkCode}, 0, 0, [UIntPtr]::Zero); $MediaKey::keybd_event(${vkCode}, 0, 2, [UIntPtr]::Zero);`;
+    exec(`powershell -NoProfile -Command "${psScript}"`);
+    return true;
+  }
+  return false;
 });

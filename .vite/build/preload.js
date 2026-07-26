@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getBluetoothStatus: () => ipcRenderer.invoke("get-bluetooth-status"),
   getCameraStatus: () => ipcRenderer.invoke("get-camera-status"),
   getMicrophoneStatus: () => ipcRenderer.invoke("get-microphone-status"),
+  getSystemMetrics: () => ipcRenderer.invoke("get-system-metrics"),
   controlSystemMedia: (command) => ipcRenderer.invoke("control-system-media", command),
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
   launchApp: (appName) => ipcRenderer.invoke("launch-app", appName),
@@ -17,6 +18,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setDisplay: (displayId) => ipcRenderer.invoke("set-display", displayId),
   updateWindowPosition: (xPerc, yPx) => ipcRenderer.invoke("update-window-position", xPerc, yPx),
   setAutoLaunch: (enable) => process.platform !== "darwin" ? ipcRenderer.invoke("set-auto-launch", enable) : Promise.resolve(),
+  getClipboardText: () => ipcRenderer.invoke("get-clipboard-text"),
+  writeClipboardText: (text) => ipcRenderer.invoke("write-clipboard-text", text),
+  clearClipboard: () => ipcRenderer.invoke("clear-clipboard"),
+  controlSystemVolume: (action) => ipcRenderer.invoke("control-system-volume", action),
   focusWindow: () => ipcRenderer.invoke("focus-window"),
+  logMessage: (level, msg, details) => ipcRenderer.invoke("log-message", level, msg, details),
   platform: process.platform
 });
