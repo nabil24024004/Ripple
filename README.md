@@ -20,21 +20,23 @@ https://github.com/user-attachments/assets/a7b9ed8a-97b5-4603-bad7-6f4c4bef1f5d
 
 ### Core Functionality
 - **Multi-Monitor & Desktop Support** — Island syncs seamlessly across all desktops and monitors
-- **Media Controls** — Now playing preview with playback controls for your music
-- **Customizable Themes** — Multiple themes including Win95, SleekBlack, and more
+- **Dynamic Stadium Pill Physics** — Smooth Framer Motion spring morphing (`stiffness: 340, damping: 28`) between Still (semicircular 20px pill) and Large modes (32px pill)
+- **Media Controls & Clean Titles** — Now playing preview with clean app naming (Spotify/Apple Music) and un-cropped marquee titles
+- **Customizable Themes** — Multiple themes including Win95, SleekBlack, and custom RGB colors
 - **Quick Apps** — One-click access to 4 apps of your choice
-- **Keyboard Shortcuts** — Quick navigation with Ctrl + number shortcuts
+- **Keyboard Shortcuts** — Quick navigation with `Ctrl + [Number]` shortcuts
 
 ### Information & Alerts
-- **Weather Display** — Real-time weather information
+- **Weather Display** — Real-time weather information & forecasts
 - **Battery Alerts** — Charging status and low battery notifications
-- **Bluetooth Alerts** — Get notified when devices connect/disconnect
+- **Bluetooth & Hardware Stats** — Real-time hardware utilization (CPU & RAM) and device connection alerts
 
-### Smart Features
-- **AI Ask Feature** — Integrated AI assistant powered by Groq
-- **Browser Search** — Quick search integration
-- **Clipboard Manager** — Access your clipboard history
-- **Tasks List** — Built-in task management
+### Smart Features & Productivity
+- **Minimalist Tasks Manager** — Apple / Things 3 style task list with circular check buttons and single-capsule input bar
+- **Timer & Presets** — Quick preset timer chips (15m, 30m, 60m, 100m) and custom time picker
+- **Browser Search** — Instant web search integration
+- **Clipboard Manager** — Access and manage your copied text snippets
+- **Compact Calendar** — Monthly interactive calendar with zero-margin height optimization
 
 ---
 

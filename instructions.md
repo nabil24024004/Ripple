@@ -54,9 +54,17 @@ https://github.com/user-attachments/assets/048ef089-c975-4a08-81e6-1f62f1795d12
 
 <img width="443" height="217" alt="Screenshot 2025-12-27 at 5 02 41 PM" src="https://github.com/user-attachments/assets/e2569751-f892-472c-8df6-ae2a3effd4ce" />
 
+### Tasks
+
+##### *A minimalist Apple/Things 3 style task manager with circular check controls, instant Enter submission, and an integrated single-capsule input bar.*
+
+### Timer
+
+##### *A dedicated timer tab featuring 15m, 30m, 60m, 100m preset chips and custom time picker controls.*
+
 ### Settings
 
-##### *It's the last Tab and it allows you to adjust everything from colors and positioning to features like **Auto Launch on Boot** (available for Windows and Linux).*
+##### *It's the tab that allows you to adjust everything from colors and positioning to features like **Auto Launch on Boot** (available for Windows and Linux).*
 
 https://github.com/user-attachments/assets/303dbcd0-37c8-457c-9372-73f756dbd472
 

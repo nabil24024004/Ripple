@@ -75,22 +75,31 @@ The Island interface operates across **3 primary modes** and **2 optional toggle
 
 ---
 
-## 🧩 Feature Tabs (0 to 9)
+## 🧩 Feature Tabs (0 to 10)
 
-Ripple includes **10 feature tabs** managed in [Island.jsx](file:///d:/Ripple%20Island/src/Island.jsx):
+Ripple includes **feature tabs** managed in [Island.jsx](file:///d:/Ripple%20Island/src/Island.jsx):
 
-| Tab ID | Tab Name | Functionality |
+| Tab ID | Tab Name | Functionality & Recent Enhancements |
 | :-: | :--- | :--- |
 | `0` | **Browser Search** | Instant web search input bar with URL auto-launching |
-| `1` | **Workflows & QA** | Quick Appslauncher (up to 4 configurable apps) and workflow URL shortcuts |
+| `1` | **Workflows & QA** | Quick Apps launcher (up to 4 configurable apps) and workflow URL shortcuts |
 | `2` | **Overview** | Detailed daily weather preview, location settings, and date header |
-| `3` | **Now Playing** | Active media status, album art display, track playback controls (Spotify / Apple Music / Windows Media) |
-| `4` | **Calendar** | Full monthly interactive calendar view with date highlighting |
+| `3` | **Now Playing** | Active media status, album art display, track playback controls (Spotify / Apple Music / Windows Media) with cleaned UWP app titles and un-cropped title text |
+| `4` | **Calendar** | Full monthly interactive calendar view with date highlighting and compact zero-margin 188px layout |
 | `5` | **Notifications** | Live feed of system alerts, battery notifications, and device updates |
 | `6` | **Game / Stats** | Real-time CPU and RAM hardware utilization counters |
 | `7` | **Clipboard** | History manager for copied text snippets |
-| `8` | **Tasks** | Built-in TODO task list manager with item completion and local persistence |
+| `8` | **Tasks** | Apple / Things 3 minimalist task manager with circular check controls, capsule input bar, and local persistence |
 | `9` | **Settings** | Full customization suite (Themes, Custom RGB Colors, Background Wallpaper, Multi-monitor selection, Positioning, Auto-launch on boot, Battery Alerts, Stealth/Standby modes, Tab Reordering & Hiding) |
+| `10` | **Timer** | Preset timer chips (15m, 30m, 60m, 100m) and custom time picker with start controls |
+
+---
+
+## 🎨 UI Physics & Design System
+
+- **Dynamic Pill Shape**: Semicircular stadium pill geometry (`borderRadius: 20` for 40px height in Still mode, expanding smoothly to `32` in Large mode).
+- **Spring Physics**: Framer Motion tuned spring transitions (`stiffness: 340, damping: 28, mass: 0.8`) ensuring frame-accurate morphing without snap artifacts.
+- **Drop Shadows**: Animated `boxShadow` (`0 8px 24px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.18)`) across hovered and unhovered states.
 
 ---
 
