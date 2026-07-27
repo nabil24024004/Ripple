@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Mic, SkipBackIcon, Play, Pause, SkipForwardIcon, Music, Headphones, Zap, Settings, Sun, Cloud, Droplets, Trash2, ChevronRight, ChevronLeft, Plus, Check, X, CloudRain, CloudSnow, CloudLightning, CloudSun, Moon, Eye, EyeOff, GripVertical, List, Search, Star, Calendar as CalendarIcon, Bell, BellOff, AlarmClock, Timer, Activity, Cpu, Clock, Volume2, VolumeX, Wind, RotateCcw, Thermometer, Radio } from "lucide-react";
 import "./App.css";
@@ -375,6 +375,26 @@ function openMusicPlayer(source) {
   } else {
     openApp(source);
   }
+}
+
+function cleanAppName(src) {
+  if (!src) return "Spotify";
+  let s = String(src).trim();
+  if (s.includes("!")) {
+    s = s.split("!").pop();
+  }
+  if (s.includes(".")) {
+    const parts = s.split(".");
+    const lastPart = parts[parts.length - 1];
+    s = lastPart.toLowerCase() === "exe" ? (parts[parts.length - 2] || lastPart) : lastPart;
+  }
+  s = s.replace(/^SpotifyAB\.?/i, "").replace(/_.*$/, "").trim();
+  if (!s || s.toLowerCase().includes("spotify")) return "Spotify";
+  if (s.toLowerCase().includes("apple")) return "Apple Music";
+  if (s.toLowerCase().includes("chrome")) return "Chrome";
+  if (s.toLowerCase().includes("edge")) return "Edge";
+  if (s.toLowerCase().includes("firefox")) return "Firefox";
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 const TABS = [
@@ -765,8 +785,6 @@ const ScrollingTitle = ({ text = "", fontSize = 16 }) => {
         maxWidth: '290px',
         position: 'relative',
         textShadow: '0 2px 8px rgba(0,0,0,0.9)',
-        maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)'
       }}
     >
       {scrollDistance > 0 ? (
@@ -1185,7 +1203,7 @@ export default function Island() {
           ? nowPlayingWidth
           : 170;
   const height = mode === "large"
-    ? (currentTab === 9 ? (positionMode === "free" ? 435 : 355) : currentTab === 8 ? 250 : currentTab === 1 ? 272 : currentTab === 4 ? 260 : currentTab === 5 ? 240 : currentTab === 6 ? 180 : currentTab === 10 ? 192 : currentTab === 3 ? 185 : currentTab === 0 ? 120 : 190)
+    ? (currentTab === 9 ? (positionMode === "free" ? 435 : 355) : currentTab === 8 ? 180 : currentTab === 1 ? 272 : currentTab === 4 ? 188 : currentTab === 5 ? 240 : currentTab === 6 ? 180 : currentTab === 10 ? 192 : currentTab === 3 ? 185 : currentTab === 0 ? 120 : 190)
     : 40;
 
   useEffect(() => {
@@ -2024,16 +2042,19 @@ export default function Island() {
         bottom: sideStyles.bottom || 'auto',
         backgroundColor: bgColor || "#000000",
         color: textColor || "#FFFFFF",
-        scale: isHovered ? 1.05 : 1,
+        scale: 1,
         x: sideStyles.x,
         borderRadius:
           mode === "large" && theme === "win95"
             ? 0
             : mode === "large"
-              ? (currentTab === 0 ? 28 : 30)
+              ? (currentTab === 0 ? 28 : 32)
               : theme === "win95"
                 ? 0
-                : 14,
+                : 20,
+        boxShadow: isHovered
+          ? "0 16px 36px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.2)"
+          : "0 8px 24px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.18)",
       }}
       onAnimationStart={() => {
         setIsTransitioning(true);
@@ -2043,9 +2064,9 @@ export default function Island() {
       }}
       transition={{
         type: "spring",
-        stiffness: 400,
-        damping: 40,
-        mass: 2.5,
+        stiffness: 340,
+        damping: 28,
+        mass: 0.8,
         x: { duration: .15 }
       }}
       style={{
@@ -2063,20 +2084,17 @@ export default function Island() {
           theme === "win95"
             ? "#FFFFFF #808080 #808080 #FFFFFF"
             : "none",
-
-        boxShadow: hideNotActiveIslandEnabled && mode === 'still' ? "none" : isHovered ? '0 0 32px rgba(0, 0, 0, 0.25)' : '0 0 24px rgba(0, 0, 0, 0.12)',
         '--island-text-color': textColor,
         '--island-bg-color': bgColor,
         position: 'fixed',
         margin: 0,
-        transition: 'box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         pointerEvents: isTransitioning ? 'auto' : (window.electronAPI?.platform === 'linux' && mode === 'still' && !isHovered) ? 'none' : 'auto'
       }}
     >
       {/* Depleting Orange Border Stroke & Synchronized Glow for Active Timer */}
       {(isTimerRunning || timerSeconds > 0) && (() => {
         const progress = timerTotalDuration > 0 ? Math.min(1, Math.max(0, timerSeconds / timerTotalDuration)) : 0;
-        const cornerRadius = mode === 'large' ? 24 : 20;
+        const cornerRadius = mode === 'large' ? 32 : 20;
 
         return (
           <svg
@@ -2272,7 +2290,7 @@ export default function Island() {
                 style={{
                   position: "absolute",
                   top: "50%",
-                  left: "15px",
+                  left: "18px",
                   transform: "translateY(-50%)",
                   fontSize: 16,
                   fontWeight: 600,
@@ -2304,7 +2322,7 @@ export default function Island() {
                 style={{
                   position: "absolute",
                   top: "50%",
-                  right: "15px",
+                  right: "18px",
                   transform: "translateY(-50%)",
                   fontSize: 16,
                   fontWeight: 600,
@@ -2624,7 +2642,7 @@ export default function Island() {
                         {/* Top App Name Badge */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 400, color: 'rgba(255,255,255,0.75)' }}>
                           <Music size={14} color="rgba(255,255,255,0.85)" />
-                          <span>{spotifyTrack.source ? (spotifyTrack.source.charAt(0).toUpperCase() + spotifyTrack.source.slice(1)) : 'Other device'}</span>
+                          <span>{cleanAppName(spotifyTrack?.source)}</span>
                         </div>
 
                         {/* Middle Title & Artist */}
@@ -3054,44 +3072,151 @@ export default function Island() {
               </div>
             )}
 
-            {/*Tasks*/}
+            {/* Minimalist Apple/Things 3 Tasks UI */}
             {currentTab === 8 && (
-              <div id="tasks-container" style={{ animation: 'none' }}>
-                <div id="task-list">
-                  <AnimatePresence>
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  padding: '14px 16px',
+                  boxSizing: 'border-box',
+                  userSelect: 'none'
+                }}
+              >
+                {/* Task List */}
+                <div
+                  style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    marginBottom: 8,
+                    paddingRight: 2,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 3
+                  }}
+                >
+                  <AnimatePresence mode="popLayout">
                     {tasks.length === 0 ? (
-                      <motion.p
+                      <motion.div
+                        key="empty-tasks"
                         initial={{ opacity: 0 }}
-                        animate={{ opacity: 0.5 }}
+                        animate={{ opacity: 0.4 }}
                         exit={{ opacity: 0 }}
-                        style={{ textAlign: 'center', marginTop: 30 }}
+                        style={{
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 13,
+                          fontWeight: 400,
+                          color: textColor,
+                          fontFamily: 'OpenRunde, system-ui, sans-serif'
+                        }}
                       >
                         No tasks yet. Add one below!
-                      </motion.p>
+                      </motion.div>
                     ) : (
                       tasks.map((task, index) => (
                         <motion.div
-                          className="task-row"
                           key={`task-${task}-${index}`}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0, padding: 0 }}
-                          transition={{ duration: 0.2 }}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, x: 10, height: 0, marginBottom: 0, padding: 0 }}
+                          transition={{ duration: 0.15 }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 10,
+                            padding: '6px 8px',
+                            borderRadius: 8,
+                            boxSizing: 'border-box'
+                          }}
                         >
-                          <input
-                            type="checkbox"
-                            onChange={() => {
-                              removeTask(index);
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                            {/* Minimal Circular Check Button */}
+                            <motion.button
+                              whileTap={{ scale: 0.85 }}
+                              onClick={() => removeTask(index)}
+                              style={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                border: '1.5px solid rgba(255, 255, 255, 0.35)',
+                                background: 'none',
+                                cursor: 'pointer',
+                                padding: 0,
+                                flexShrink: 0,
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.35)';
+                                e.currentTarget.style.background = 'none';
+                              }}
+                            />
+
+                            <span
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 400,
+                                color: textColor,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                fontFamily: 'OpenRunde, system-ui, sans-serif'
+                              }}
+                            >
+                              {task}
+                            </span>
+                          </div>
+
+                          <motion.button
+                            whileHover={{ opacity: 1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => removeTask(index)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: textColor,
+                              opacity: 0.3,
+                              cursor: 'pointer',
+                              padding: 2,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: 4
                             }}
-                            className="task-checkbox"
-                          />
-                          <h3 className="task-item" style={{ flex: 1, margin: 0 }}>{task}</h3>
+                          >
+                            <Trash2 size={13} color={textColor} />
+                          </motion.button>
                         </motion.div>
                       ))
                     )}
                   </AnimatePresence>
                 </div>
-                <div id="task-input-container">
+
+                {/* Minimal Single-Capsule Input Row */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    width: '100%',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: 12,
+                    padding: '3px 4px 3px 12px',
+                    boxSizing: 'border-box'
+                  }}
+                >
                   <input
                     type="text"
                     placeholder="New task..."
@@ -3100,34 +3225,43 @@ export default function Island() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") addTask();
                     }}
-                    className="task-input"
                     style={{
-                      backgroundColor: `color-mix(in srgb, ${textColor}, transparent 95%)`,
+                      flex: 1,
+                      height: 32,
+                      background: 'none',
                       color: textColor,
-                      border: `1px solid color-mix(in srgb, ${textColor}, transparent 90%)`,
-                      borderRadius: '12px',
-                      padding: '8px 12px',
+                      border: 'none',
+                      fontSize: 13,
+                      fontWeight: 400,
                       outline: 'none',
-                      flex: 1
+                      boxSizing: 'border-box',
+                      fontFamily: 'OpenRunde, system-ui, sans-serif'
                     }}
                   />
-                  <button
-                    onClick={() => {
-                      addTask();
-                    }}
-                    className="task-add-btn"
+
+                  <motion.button
+                    whileHover={{ background: 'rgba(255, 255, 255, 0.25)' }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => addTask()}
                     style={{
-                      backgroundColor: textColor,
-                      color: bgColor,
+                      height: 28,
+                      padding: '0 12px',
+                      background: 'rgba(255, 255, 255, 0.16)',
+                      color: textColor,
                       border: 'none',
-                      borderRadius: '12px',
-                      padding: '8px 16px',
+                      borderRadius: 8,
+                      fontSize: 12,
                       fontWeight: 600,
-                      cursor: 'pointer'
+                      fontFamily: 'OpenRunde, system-ui, sans-serif',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
                     }}
                   >
                     Add
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             )}

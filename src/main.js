@@ -491,7 +491,7 @@ const createWindow = () => {
     acceptFirstMouse: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-      devTools: false,
+      devTools: true,
     },
     show: true,
   });
