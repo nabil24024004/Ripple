@@ -1033,6 +1033,15 @@ label {
   min-width: 0;
 }
 
+.notification-app-name {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.5;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 1px;
+}
+
 .notification-title {
   font-size: 13px;
   font-weight: 600;

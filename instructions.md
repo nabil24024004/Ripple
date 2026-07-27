@@ -16,7 +16,7 @@
 
 ### Quick Mode
 
-##### *When you hover over the Island you'll see this. Information like time, weather, and battery alerts will show here. If music is playing, it will also show "Now Playing" info with a smooth expansion and hover-activated playback controls.*
+##### *When you hover over the Island you'll see this. Information like time, weather, and battery alerts will show here. If music is playing, it will also show "Now Playing" info with a smooth expansion and hover-activated playback controls. It also displays incoming Windows Notifications, WhatsApp calls, USB insertions, and keyboard lock (Caps/Num Lock) states.*
 
 <img width="364" height="124" alt="Screenshot 2025-12-27 at 5 00 12 PM" src="https://github.com/user-attachments/assets/e17da264-4306-4d77-b071-0d9e5388d074" />
 

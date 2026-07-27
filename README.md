@@ -29,7 +29,9 @@ https://github.com/user-attachments/assets/a7b9ed8a-97b5-4603-bad7-6f4c4bef1f5d
 ### Information & Alerts
 - **Weather Display** — Real-time weather information & forecasts
 - **Battery Alerts** — Charging status and low battery notifications
-- **Bluetooth & Hardware Stats** — Real-time hardware utilization (CPU & RAM) and device connection alerts
+- **Windows Notifications** — Native Windows 10/11 notification integration and management
+- **WhatsApp Calls** — Detects and manages incoming WhatsApp voice and video calls directly from the Island
+- **Hardware & System Alerts** — Real-time CPU/RAM stats, USB connection alerts, Bluetooth, and Keyboard lock (Caps/Num/Scroll) indicators
 
 ### Smart Features & Productivity
 - **Minimalist Tasks Manager** — Apple / Things 3 style task list with circular check buttons and single-capsule input bar

@@ -24,5 +24,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   controlSystemVolume: (action) => ipcRenderer.invoke('control-system-volume', action),
   focusWindow: () => ipcRenderer.invoke('focus-window'),
   logMessage: (level, msg, details) => ipcRenderer.invoke('log-message', level, msg, details),
+  getNotifications: () => ipcRenderer.invoke('get-notifications'),
+  dismissNotification: (id) => ipcRenderer.invoke('dismiss-notification', id),
+  focusNotificationApp: (appId) => ipcRenderer.invoke('focus-notification-app', appId),
+  getWhatsAppCall: () => ipcRenderer.invoke('get-whatsapp-call'),
+  answerWhatsAppCall: () => ipcRenderer.invoke('answer-whatsapp-call'),
+  declineWhatsAppCall: () => ipcRenderer.invoke('decline-whatsapp-call'),
+  onKeyLockChange: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('key-lock-change', handler);
+    return () => ipcRenderer.removeListener('key-lock-change', handler);
+  },
+  onUSBChange: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('usb-change', handler);
+    return () => ipcRenderer.removeListener('usb-change', handler);
+  },
   platform: process.platform
 });

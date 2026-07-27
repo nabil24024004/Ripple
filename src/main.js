@@ -551,6 +551,8 @@ app.whenReady().then(() => {
     app.dock.hide();
   }
   createWindow();
+  startKeyLockPolling();
+  startUSBPolling();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -886,10 +888,21 @@ ipcMain.handle("get-bluetooth-status", async () => {
         }
       });
     } else if (platform === "win32") {
-      const psScript = `@(Get-PnpDevice -Class Bluetooth -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'OK' -and $_.Present -eq $true -and $_.InstanceId -match 'BTHENUM' }).Count -gt 0`;
-      exec(`powershell -NoProfile -Command "${psScript}"`, (error, stdout) => {
-        if (error) return resolve(false);
-        resolve(stdout.trim().toLowerCase() === "true");
+      const psScript = `
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$devs = @(Get-PnpDevice -Class Bluetooth -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'OK' -and $_.Present -eq $true -and $_.InstanceId -match 'BTHENUM' })
+$names = @($devs | ForEach-Object { $_.FriendlyName })
+@{ connected = ($devs.Count -gt 0); devices = $names } | ConvertTo-Json -Compress
+`;
+      const enc = Buffer.from(psScript, "utf16le").toString("base64");
+      exec(`powershell -NoProfile -EncodedCommand ${enc}`, (error, stdout) => {
+        if (error || !stdout) return resolve({ connected: false, devices: [] });
+        try {
+          const data = JSON.parse(stdout.trim());
+          resolve({ connected: !!data.connected, devices: Array.isArray(data.devices) ? data.devices : data.devices ? [data.devices] : [] });
+        } catch {
+          resolve({ connected: false, devices: [] });
+        }
       });
     } else if (platform === "linux") {
       exec("bluetoothctl devices Connected", (error, stdout) => {
@@ -1087,4 +1100,481 @@ ipcMain.handle("control-system-volume", async (event, action) => {
     return true;
   }
   return false;
+});
+
+// --- Feature: Key Lock Alerts (CapsLock / NumLock) ---
+let lastCapsLock = null;
+let lastNumLock = null;
+
+function startKeyLockPolling() {
+  if (process.platform !== "win32") return;
+  setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    exec('powershell -NoProfile -Command "[Console]::CapsLock; [Console]::NumberLock"', (err, stdout) => {
+      if (err || !stdout) return;
+      const lines = stdout.trim().split(/\r?\n/);
+      const capsLock = lines[0]?.trim().toLowerCase() === "true";
+      const numLock = lines[1]?.trim().toLowerCase() === "true";
+      if (lastCapsLock !== null && capsLock !== lastCapsLock) {
+        mainWindow.webContents.send("key-lock-change", { key: "CapsLock", state: capsLock });
+      }
+      if (lastNumLock !== null && numLock !== lastNumLock) {
+        mainWindow.webContents.send("key-lock-change", { key: "NumLock", state: numLock });
+      }
+      lastCapsLock = capsLock;
+      lastNumLock = numLock;
+    });
+  }, 500);
+}
+
+// --- Feature: USB Drive Detection ---
+let knownUSBDrives = null;
+
+function startUSBPolling() {
+  if (process.platform !== "win32") return;
+  setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    exec('wmic logicaldisk where drivetype=2 get name,volumename /format:csv', (err, stdout) => {
+      if (err) return;
+      const currentDrives = new Map();
+      const lines = stdout.trim().split(/\r?\n/).filter(l => l.trim() && !l.startsWith("Node"));
+      for (const line of lines) {
+        const parts = line.trim().split(",");
+        if (parts.length >= 3) {
+          const drive = parts[1]?.trim();
+          const name = parts[2]?.trim() || "USB Drive";
+          if (drive) currentDrives.set(drive, name);
+        }
+      }
+      if (knownUSBDrives !== null) {
+        for (const [drive, name] of currentDrives) {
+          if (!knownUSBDrives.has(drive)) {
+            mainWindow.webContents.send("usb-change", { action: "connected", drive, name });
+          }
+        }
+        for (const [drive] of knownUSBDrives) {
+          if (!currentDrives.has(drive)) {
+            mainWindow.webContents.send("usb-change", { action: "disconnected", drive, name: "USB Drive" });
+          }
+        }
+      }
+      knownUSBDrives = currentDrives;
+    });
+  }, 3000);
+}
+
+// --- Feature: Notification Center (Windows) ---
+const psNotificationsScriptPath = path.join(app.getPath("userData"), "get-notifications.ps1");
+const psNotificationsScriptContent = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+
+[void][Windows.UI.Notifications.Management.UserNotificationListener, Windows.UI.Notifications, ContentType = WindowsRuntime]
+[void][Windows.UI.Notifications.UserNotification, Windows.UI.Notifications, ContentType = WindowsRuntime]
+
+$asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+    $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetGenericArguments().Count -eq 1 -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name.StartsWith('IAsyncOperation')
+}[0]
+
+function Await-Op($asyncOp, $type) {
+    if (-not $asyncOp) { return $null }
+    try {
+        $task = $asTaskGeneric.MakeGenericMethod($type).Invoke($null, @($asyncOp))
+        [void]$task.Wait()
+        return $task.Result
+    } catch { return $null }
+}
+
+try {
+    $listener = [Windows.UI.Notifications.Management.UserNotificationListener]::Current
+
+    $accessType = [Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus, Windows.UI.Notifications, ContentType = WindowsRuntime]
+    $access = Await-Op ($listener.RequestAccessAsync()) $accessType
+
+    if ($access -ne [Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus]::Allowed) {
+        Write-Output "[]"
+        exit
+    }
+
+    $kinds = [Windows.UI.Notifications.NotificationKinds]::Toast
+    $userNotifType = [Windows.UI.Notifications.UserNotification, Windows.UI.Notifications, ContentType = WindowsRuntime]
+    $readOnlyListType = [System.Collections.Generic.IReadOnlyList\`\`1].MakeGenericType($userNotifType)
+    $notifsOp = $listener.GetNotificationsAsync($kinds)
+    $task = $asTaskGeneric.MakeGenericMethod($readOnlyListType).Invoke($null, @($notifsOp))
+    [void]$task.Wait(10000)
+    $notifs = $task.Result
+
+    if (-not $notifs) {
+        Write-Output "[]"
+        exit
+    }
+
+    $results = [System.Collections.Generic.List[object]]::new()
+    foreach ($n in $notifs) {
+        try {
+            $toast = $n.Notification.Visual.GetBinding([Windows.UI.Notifications.KnownNotificationBindings]::ToastGeneric)
+            if (-not $toast) { continue }
+            $texts = $toast.GetTextElements()
+            $title = ""
+            $body = ""
+            $i = 0
+            foreach ($t in $texts) {
+                if ($i -eq 0) { $title = $t.Text }
+                elseif ($i -eq 1) { $body = $t.Text }
+                $i++
+            }
+            $appName = ""
+            $appId = ""
+            try {
+                $appName = $n.AppInfo.DisplayInfo.DisplayName
+                $appId = $n.AppInfo.AppUserModelId
+            } catch {}
+            $results.Add([PSCustomObject]@{
+                Id = $n.Id
+                AppName = $appName
+                AppId = $appId
+                Title = $title
+                Body = $body
+                Timestamp = $n.CreationTime.ToString("o")
+            })
+        } catch { continue }
+    }
+    @($results) | ConvertTo-Json -Compress -Depth 3
+} catch {
+    Write-Output "[]"
+}
+`;
+
+try {
+  fs.writeFileSync(psNotificationsScriptPath, psNotificationsScriptContent, "utf8");
+} catch (e) {
+  logToFile("Failed to write get-notifications.ps1:", e);
+}
+
+ipcMain.handle("get-notifications", async () => {
+  if (process.platform !== "win32") return [];
+  return new Promise((resolve) => {
+    execFile(
+      "powershell",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", psNotificationsScriptPath],
+      { maxBuffer: 5 * 1024 * 1024, encoding: "utf8", timeout: 10000 },
+      (error, stdout) => {
+        if (error || !stdout) return resolve([]);
+        try {
+          const data = JSON.parse(stdout.trim());
+          resolve(Array.isArray(data) ? data : data ? [data] : []);
+        } catch {
+          resolve([]);
+        }
+      }
+    );
+  });
+});
+
+ipcMain.handle("dismiss-notification", async (event, notifId) => {
+  if (process.platform !== "win32") return false;
+  return new Promise((resolve) => {
+    const script = `
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+    $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetGenericArguments().Count -eq 1 -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name.StartsWith('IAsyncOperation')
+}[0]
+function Await-Op($asyncOp, $type) {
+    if (-not $asyncOp) { return $null }
+    try { $task = $asTaskGeneric.MakeGenericMethod($type).Invoke($null, @($asyncOp)); [void]$task.Wait(); return $task.Result } catch { return $null }
+}
+try {
+    $listener = [Windows.UI.Notifications.Management.UserNotificationListener, Windows.UI.Notifications, ContentType = WindowsRuntime]::Current
+    $listener.RemoveNotification(${notifId})
+    Write-Output "true"
+} catch { Write-Output "false" }
+`;
+    const enc = getPowershellEncodedCommand(script);
+    exec(`powershell -NoProfile -EncodedCommand ${enc}`, (err, stdout) => {
+      resolve(stdout?.trim() === "true");
+    });
+  });
+});
+
+ipcMain.handle("focus-notification-app", async (event, appId) => {
+  if (process.platform !== "win32" || !appId) return false;
+  return new Promise((resolve) => {
+    const cleanName = appId.split("!")[0].split("_")[0].replace(/\./g, "");
+    const script = `
+$type = '[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);'
+$fw = Add-Type -MemberDefinition $type -Name "FW" -Namespace "WinAPI" -PassThru
+$procs = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and ($_.ProcessName -match '${cleanName}' -or $_.MainWindowTitle -match '${cleanName}') } | Select-Object -First 1
+if ($procs) { [void]$fw::SetForegroundWindow($procs.MainWindowHandle); Write-Output "true" } else { Write-Output "false" }
+`;
+    const enc = getPowershellEncodedCommand(script);
+    exec(`powershell -NoProfile -EncodedCommand ${enc}`, (err, stdout) => {
+      resolve(stdout?.trim() === "true");
+    });
+  });
+});
+
+// --- Feature: WhatsApp Call Detection ---
+const psWhatsAppCallScriptPath = path.join(app.getPath("userData"), "get-whatsapp-call.ps1");
+const psWhatsAppCallScriptContent = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+[void][Windows.UI.Notifications.Management.UserNotificationListener, Windows.UI.Notifications, ContentType = WindowsRuntime]
+[void][Windows.UI.Notifications.UserNotification, Windows.UI.Notifications, ContentType = WindowsRuntime]
+
+$asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+    $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetGenericArguments().Count -eq 1 -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name.StartsWith('IAsyncOperation')
+}[0]
+function Await-Op($asyncOp, $type) {
+    if (-not $asyncOp) { return $null }
+    try { $task = $asTaskGeneric.MakeGenericMethod($type).Invoke($null, @($asyncOp)); [void]$task.Wait(); return $task.Result } catch { return $null }
+}// Fast dual-check: Windows Notification Listener + WhatsApp Window Title
+try {
+    # 1. Check active WhatsApp call window title first (instant, 0ms latency)
+    $type = '[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd); [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int count);'
+    $win = Add-Type -MemberDefinition $type -Name "WinWhatsApp" -Namespace "WinAPI" -PassThru
+    $procs = Get-Process -Name "WhatsApp","WhatsApp.Root" -ErrorAction SilentlyContinue
+    foreach ($p in $procs) {
+        if ($p.MainWindowHandle -ne 0) {
+            $sb = New-Object System.Text.StringBuilder 256
+            [void]$win::GetWindowText($p.MainWindowHandle, $sb, 256)
+            $title = $sb.ToString().Trim()
+            if ($title -and ($title -like '*call*' -or $title -like '*ringing*' -or $title -like '*incoming*')) {
+                $isVideo = $title -like '*video*'
+                $callerMatch = [regex]::Match($title, '(?:from|with)\s+(.+?)(?:\s*[-–—]|$)', 'IgnoreCase')
+                $caller = if ($callerMatch.Success) { $callerMatch.Groups[1].Value.Trim() } else { $title.Replace("WhatsApp", "").Trim() }
+                if (-not $caller) { $caller = "WhatsApp Contact" }
+                @{ caller = $caller; callType = (if ($isVideo) { "Video Call" } else { "Voice Call" }); active = $true } | ConvertTo-Json -Compress
+                exit
+            }
+        }
+    }
+
+    # 2. Fallback to UserNotificationListener
+    $listener = [Windows.UI.Notifications.Management.UserNotificationListener]::Current
+    $accessType = [Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus, Windows.UI.Notifications, ContentType = WindowsRuntime]
+    $access = Await-Op ($listener.RequestAccessAsync()) $accessType
+    if ($access -eq [Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus]::Allowed) {
+        $kinds = [Windows.UI.Notifications.NotificationKinds]::Toast
+        $userNotifType = [Windows.UI.Notifications.UserNotification, Windows.UI.Notifications, ContentType = WindowsRuntime]
+        $readOnlyListType = [System.Collections.Generic.IReadOnlyList\`\`1].MakeGenericType($userNotifType)
+        $task = $asTaskGeneric.MakeGenericMethod($readOnlyListType).Invoke($null, @($listener.GetNotificationsAsync($kinds)))
+        [void]$task.Wait(3000)
+        $notifs = $task.Result
+        foreach ($n in $notifs) {
+            try {
+                $appId = ""
+                try { $appId = $n.AppInfo.AppUserModelId } catch {}
+                $appName = ""
+                try { $appName = $n.AppInfo.DisplayInfo.DisplayName } catch {}
+                if ($appId -notlike '*WhatsApp*' -and $appName -notlike '*WhatsApp*') { continue }
+                $toast = $n.Notification.Visual.GetBinding([Windows.UI.Notifications.KnownNotificationBindings]::ToastGeneric)
+                if (-not $toast) { continue }
+                $texts = $toast.GetTextElements()
+                $title = ""; $body = ""; $i = 0
+                foreach ($t in $texts) { if ($i -eq 0) { $title = $t.Text } elseif ($i -eq 1) { $body = $t.Text }; $i++ }
+                $combined = "$title $body"
+                $callPatterns = @('incoming', 'ringing', 'calling', 'voice call', 'video call', 'audio call', 'call from')
+                $isCall = $false
+                foreach ($p in $callPatterns) { if ($combined -like "*$p*") { $isCall = $true; break } }
+                if ($isCall) {
+                    $isVideo = $combined -like '*video*'
+                    $callType = if ($isVideo) { "Video Call" } else { "Voice Call" }
+                    @{ caller = $title; callType = $callType; active = $true } | ConvertTo-Json -Compress
+                    exit
+                }
+            } catch { continue }
+        }
+    }
+    Write-Output "null"
+} catch { Write-Output "null" }
+`;
+
+try {
+  fs.writeFileSync(psWhatsAppCallScriptPath, psWhatsAppCallScriptContent, "utf8");
+} catch (e) {
+  logToFile("Failed to write get-whatsapp-call.ps1:", e);
+}
+
+// Detect incoming WhatsApp calls via notification content & window titles
+ipcMain.handle("get-whatsapp-call", async () => {
+  if (process.platform !== "win32") return null;
+  return new Promise((resolve) => {
+    const script = `
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+
+# 1. UserNotificationListener check for WhatsApp call toast
+try {
+    $asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+        $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetGenericArguments().Count -eq 1 -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name.StartsWith('IAsyncOperation')
+    }[0]
+    function Await-Op($asyncOp, $type) {
+        if (-not $asyncOp) { return $null }
+        try { $task = $asTaskGeneric.MakeGenericMethod($type).Invoke($null, @($asyncOp)); [void]$task.Wait(); return $task.Result } catch { return $null }
+    }
+    $listener = [Windows.UI.Notifications.Management.UserNotificationListener]::Current
+    $accessType = [Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus, Windows.UI.Notifications, ContentType = WindowsRuntime]
+    $access = Await-Op ($listener.RequestAccessAsync()) $accessType
+    if ($access -eq [Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus]::Allowed) {
+        $kinds = [Windows.UI.Notifications.NotificationKinds]::Toast
+        $userNotifType = [Windows.UI.Notifications.UserNotification, Windows.UI.Notifications, ContentType = WindowsRuntime]
+        $readOnlyListType = [System.Collections.Generic.IReadOnlyList\`\`1].MakeGenericType($userNotifType)
+        $task = $asTaskGeneric.MakeGenericMethod($readOnlyListType).Invoke($null, @($listener.GetNotificationsAsync($kinds)))
+        [void]$task.Wait(1500)
+        $notifs = $task.Result
+        foreach ($n in $notifs) {
+            try {
+                $appId = ""; try { $appId = $n.AppInfo.AppUserModelId } catch {}
+                $appName = ""; try { $appName = $n.AppInfo.DisplayInfo.DisplayName } catch {}
+                if ($appId -like '*WhatsApp*' -or $appName -like '*WhatsApp*') {
+                    $toast = $n.Notification.Visual.GetBinding([Windows.UI.Notifications.KnownNotificationBindings]::ToastGeneric)
+                    if ($toast) {
+                        $texts = $toast.GetTextElements()
+                        $title = ""; $body = ""; $i = 0
+                        foreach ($t in $texts) { if ($i -eq 0) { $title = $t.Text } elseif ($i -eq 1) { $body = $t.Text }; $i++ }
+                        $combined = "$title $body".ToLower()
+                        if ($combined -like '*call*' -or $combined -like '*ring*' -or $combined -like '*voice*' -or $combined -like '*video*' -or $combined -like '*incoming*' -or [string]::IsNullOrWhiteSpace($body)) {
+                            $isVideo = $combined -like '*video*'
+                            $caller = if ($title) { $title } else { "WhatsApp Contact" }
+                            @{ caller = $caller; callType = (if ($isVideo) { "Video Call" } else { "Voice Call" }); active = $true } | ConvertTo-Json -Compress
+                            exit
+                        }
+                    }
+                }
+            } catch {}
+        }
+    }
+} catch {}
+
+# 2. UI Automation check for active WhatsApp call windows
+try {
+    Add-Type -AssemblyName UIAutomationClient -ErrorAction SilentlyContinue
+    Add-Type -AssemblyName UIAutomationTypes -ErrorAction SilentlyContinue
+    $root = [System.Windows.Automation.AutomationElement]::RootElement
+    $condWA = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, "WhatsApp")
+    $waWins = $root.FindAll([System.Windows.Automation.TreeScope]::Children, $condWA)
+    foreach ($w in $waWins) {
+        $condDesc = [System.Windows.Automation.Condition]::TrueCondition
+        $children = $w.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condDesc)
+        $isCall = $false; $caller = ""; $type = "Voice Call"
+        foreach ($c in $children) {
+            $n = $c.Current.Name
+            if ($n -eq "Voice call") { $isCall = $true; $type = "Voice Call" }
+            if ($n -eq "Video call") { $isCall = $true; $type = "Video Call" }
+            if ($n -eq "Accept" -or $n -eq "Decline") { $isCall = $true }
+        }
+        if ($isCall) {
+            foreach ($c in $children) {
+                $n = $c.Current.Name
+                $t = $c.Current.ControlType.ProgrammaticName
+                if ($t -match "Text" -and $n -ne "Voice call" -and $n -ne "Video call" -and $n -ne "WhatsApp" -and -not [string]::IsNullOrWhiteSpace($n)) {
+                    $caller = $n
+                    break
+                }
+            }
+            if (-not $caller) { $caller = "WhatsApp Contact" }
+            @{ caller = $caller; callType = $type; active = $true } | ConvertTo-Json -Compress
+            exit
+        }
+    }
+} catch {}
+
+Write-Output "null"
+`;
+    const enc = getPowershellEncodedCommand(script);
+    exec(`powershell -NoProfile -EncodedCommand ${enc}`, { maxBuffer: 2 * 1024 * 1024, timeout: 5000 }, (error, stdout) => {
+      if (error || !stdout || stdout.trim() === "null") return resolve(null);
+      try {
+        resolve(JSON.parse(stdout.trim()));
+      } catch {
+        resolve(null);
+      }
+    });
+  });
+});
+
+ipcMain.handle("answer-whatsapp-call", async () => {
+  if (process.platform !== "win32") return false;
+  return new Promise((resolve) => {
+    const script = `
+$code = @"
+using System;
+using System.Runtime.InteropServices;
+public class WAFocus {
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+    public static bool Focus() {
+        bool ok = false;
+        EnumWindows((hwnd, lp) => {
+            if (IsWindowVisible(hwnd)) {
+                uint pid = 0; GetWindowThreadProcessId(hwnd, out pid);
+                try {
+                    var p = System.Diagnostics.Process.GetProcessById((int)pid);
+                    if (p != null && (p.ProcessName.Equals("WhatsApp", StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("WhatsApp.Root", StringComparison.OrdinalIgnoreCase))) {
+                        SetForegroundWindow(hwnd);
+                        ok = true;
+                        return false;
+                    }
+                } catch {}
+            }
+            return true;
+        }, IntPtr.Zero);
+        return ok;
+    }
+}
+"@
+Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
+$res = [WAFocus]::Focus()
+if ($res) { Write-Output "true" } else { Write-Output "false" }
+`;
+    const enc = getPowershellEncodedCommand(script);
+    exec(`powershell -NoProfile -EncodedCommand ${enc}`, (err, stdout) => {
+      resolve(stdout?.trim() === "true");
+    });
+  });
+});
+
+ipcMain.handle("decline-whatsapp-call", async () => {
+  if (process.platform !== "win32") return false;
+  return new Promise((resolve) => {
+    const script = `
+$code = @"
+using System;
+using System.Runtime.InteropServices;
+public class WAFocus2 {
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+    public static bool Focus() {
+        bool ok = false;
+        EnumWindows((hwnd, lp) => {
+            if (IsWindowVisible(hwnd)) {
+                uint pid = 0; GetWindowThreadProcessId(hwnd, out pid);
+                try {
+                    var p = System.Diagnostics.Process.GetProcessById((int)pid);
+                    if (p != null && (p.ProcessName.Equals("WhatsApp", StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("WhatsApp.Root", StringComparison.OrdinalIgnoreCase))) {
+                        SetForegroundWindow(hwnd);
+                        ok = true;
+                        return false;
+                    }
+                } catch {}
+            }
+            return true;
+        }, IntPtr.Zero);
+        return ok;
+    }
+}
+"@
+Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
+$res = [WAFocus2]::Focus()
+if ($res) { Write-Output "true" } else { Write-Output "false" }
+`;
+    const enc = getPowershellEncodedCommand(script);
+    exec(`powershell -NoProfile -EncodedCommand ${enc}`, (err, stdout) => {
+      resolve(stdout?.trim() === "true");
+    });
+  });
 });

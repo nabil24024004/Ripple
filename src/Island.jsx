@@ -1,7 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Mic, SkipBackIcon, Play, Pause, SkipForwardIcon, Music, Headphones, Zap, Settings, Sun, Cloud, Droplets, Trash2, ChevronRight, ChevronLeft, Plus, Check, X, CloudRain, CloudSnow, CloudLightning, CloudSun, Moon, Eye, EyeOff, GripVertical, List, Search, Star, Calendar as CalendarIcon, Bell, BellOff, AlarmClock, Timer, Activity, Cpu, Clock, Volume2, VolumeX, Wind, RotateCcw, Thermometer, Radio } from "lucide-react";
+import { Camera, Mic, SkipBackIcon, Play, Pause, SkipForwardIcon, Music, Headphones, Zap, Settings, Sun, Cloud, Droplets, Trash2, ChevronRight, ChevronLeft, Plus, Check, X, CloudRain, CloudSnow, CloudLightning, CloudSun, Moon, Eye, EyeOff, GripVertical, List, Search, Star, Calendar as CalendarIcon, Bell, BellOff, AlarmClock, Timer, Activity, Cpu, Clock, Volume2, VolumeX, Wind, RotateCcw, Thermometer, Radio, Phone, Usb } from "lucide-react";
 import "./App.css";
+
+const WhatsAppLogo = ({ size = 16, color = "#ffffff" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path
+      fill={color}
+      d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414-.074-.124-.272-.198-.57-.347z"
+    />
+    <path
+      fill={color}
+      d="M12.012 2c-5.506 0-9.989 4.478-9.989 9.984 0 1.758.459 3.472 1.33 4.982l-1.413 5.163 5.281-1.385c1.455.794 3.097 1.224 4.791 1.225 5.507 0 9.989-4.479 9.989-9.985s-4.482-9.984-9.989-9.984zm0 18.288c-1.492 0-2.955-.401-4.232-1.158l-.304-.18-3.146.825.839-3.067-.198-.315c-.832-1.325-1.272-2.862-1.272-4.409 0-4.568 3.717-8.283 8.313-8.283 4.594 0 8.312 3.715 8.312 8.283 0 4.569-3.718 8.284-8.312 8.284z"
+    />
+  </svg>
+);
 
 // Helper format timer MM:SS
 function formatTimerMMSS(totalSec) {
@@ -395,6 +408,15 @@ function cleanAppName(src) {
   if (s.toLowerCase().includes("edge")) return "Edge";
   if (s.toLowerCase().includes("firefox")) return "Firefox";
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function cleanBluetoothDeviceName(rawName) {
+  if (!rawName) return "Connected";
+  let name = String(rawName)
+    .replace(/\s+(Avrcp|Transport|Hands-Free|AG Audio|Stereo|Audio|Bluetooth|Service|Control|HID)\b/gi, "")
+    .trim();
+  if (!name) return "Connected";
+  return name;
 }
 
 const TABS = [
@@ -885,7 +907,7 @@ export default function Island() {
   const [charging, setCharging] = useState(false);
   const [chargingAlert, setChargingAlert] = useState(false);
   const [spotifyTrack, setSpotifyTrack] = useState(null);
-  const [bluetooth, setBluetooth] = useState(false);
+  const [bluetooth, setBluetooth] = useState({ connected: false, devices: [] });
   const [bluetoothAlert, setBluetoothAlert] = useState(false);
   const [cameraInUse, setCameraInUse] = useState(false);
   const [cameraAlert, setCameraAlert] = useState(false);
@@ -912,6 +934,26 @@ export default function Island() {
   const [volumeLevel, setVolumeLevel] = useState(70);
   const [volumeAlert, setVolumeAlert] = useState(false);
   const volumeAlertTimeout = useRef(null);
+
+  // Ctrl+Hover Click-Through State
+  const [ctrlHeld, setCtrlHeld] = useState(false);
+  const ctrlHeldRef = useRef(false);
+
+  // Key Lock Alert State
+  const [keyLockAlert, setKeyLockAlert] = useState(null);
+  const keyLockAlertTimeout = useRef(null);
+
+  // USB Device Alert State
+  const [usbAlert, setUSBAlert] = useState(null);
+  const usbAlertTimeout = useRef(null);
+
+  // WhatsApp Call State
+  const [whatsappCall, setWhatsappCall] = useState(null);
+
+  // Live Notification Alert State
+  const [notificationAlert, setNotificationAlert] = useState(null);
+  const notificationAlertTimeout = useRef(null);
+  const seenNotificationIds = useRef(new Set());
 
   const triggerVolumeAlert = (level) => {
     setVolumeLevel(level);
@@ -1011,7 +1053,11 @@ export default function Island() {
   const [islandY, setIslandY] = useState(() => {
     const saved = localStorage.getItem("island-y");
     const num = Number(saved);
-    return (saved !== null && !isNaN(num)) ? Math.max(0, Math.min(1000, num)) : 20;
+    if (saved !== null && !isNaN(num)) {
+      if (num === 20) return 6;
+      return Math.max(0, Math.min(1000, num));
+    }
+    return 6;
   });
 
   const tabVariants = {
@@ -1193,16 +1239,24 @@ export default function Island() {
   const textWidth = measureTextWidth(nowPlayingText) || (nowPlayingText.length * 7);
   const hoverExtraWidth = 36;
   const nowPlayingWidth = isHovered ? 135 : 110;
-  const width = mode === "large"
+  const width = whatsappCall
+    ? 320
+    : notificationAlert
+    ? 300
+    : mode === "large"
     ? (currentTab === 9 ? 495 : currentTab === 1 ? 390 : currentTab === 10 ? 370 : currentTab === 0 ? 405 : currentTab === 4 ? 360 : currentTab === 6 ? 340 : currentTab === 3 ? 380 : 380)
-    : (mode === "quick" && isPlaying && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert && !volumeAlert)
+    : (mode === "quick" && isPlaying && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert && !volumeAlert && !keyLockAlert && !usbAlert && !notificationAlert)
       ? nowPlayingWidth
-      : (mode === "quick" || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert || volumeAlert)
+      : (mode === "quick" || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert || volumeAlert || keyLockAlert || usbAlert || notificationAlert)
         ? 260
         : isPlaying
           ? nowPlayingWidth
           : 170;
-  const height = mode === "large"
+  const height = whatsappCall
+    ? 60
+    : notificationAlert
+    ? 46
+    : mode === "large"
     ? (currentTab === 9 ? (positionMode === "free" ? 435 : 355) : currentTab === 8 ? 180 : currentTab === 1 ? 272 : currentTab === 4 ? 188 : currentTab === 5 ? 240 : currentTab === 6 ? 180 : currentTab === 10 ? 192 : currentTab === 3 ? 185 : currentTab === 0 ? 120 : 190)
     : 40;
 
@@ -1249,7 +1303,7 @@ export default function Island() {
       "standby-mode": "false",
       "hour-format": "12-hr",
       "island-x": "50",
-      "island-y": "20",
+      "island-y": "6",
       "bg-color": "#000000",
       "text-color": "#FFFFFF",
       "weather-unit": "f",
@@ -1625,8 +1679,12 @@ export default function Island() {
     const fetchBluetooth = async () => {
       if (window.electronAPI?.getBluetoothStatus) {
         try {
-          const isConnected = await window.electronAPI.getBluetoothStatus();
-          setBluetooth(isConnected);
+          const result = await window.electronAPI.getBluetoothStatus();
+          if (typeof result === 'boolean') {
+            setBluetooth({ connected: result, devices: [] });
+          } else {
+            setBluetooth(result || { connected: false, devices: [] });
+          }
         } catch (e) {
           console.error(e);
         }
@@ -1639,7 +1697,7 @@ export default function Island() {
   }, []);
 
   useEffect(() => {
-    if (bluetooth === true) {
+    if (bluetooth.connected === true) {
       setMode("quick");
       setBluetoothAlert(true);
       const timerId = setTimeout(() => {
@@ -1650,7 +1708,7 @@ export default function Island() {
         clearTimeout(timerId);
       };
     }
-  }, [bluetooth]);
+  }, [bluetooth.connected]);
 
   // Get Camera Status
   useEffect(() => {
@@ -1705,6 +1763,159 @@ export default function Island() {
     const interval = setInterval(fetchMetrics, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  // Key Lock Alert Listener (push events from main process)
+  useEffect(() => {
+    if (!window.electronAPI?.onKeyLockChange) return;
+    const cleanup = window.electronAPI.onKeyLockChange((data) => {
+      setKeyLockAlert(data);
+      setMode("quick");
+      clearTimeout(keyLockAlertTimeout.current);
+      keyLockAlertTimeout.current = setTimeout(() => {
+        setKeyLockAlert(null);
+        if (!isHovered) {
+          if (standbyBorderEnabled) setMode("quick");
+          else if (largeStandbyEnabled) setMode("large");
+          else setMode("still");
+        }
+      }, 1500);
+    });
+    return () => {
+      cleanup?.();
+      clearTimeout(keyLockAlertTimeout.current);
+    };
+  }, [isHovered, standbyBorderEnabled, largeStandbyEnabled]);
+
+  // USB Device Alert Listener (push events from main process)
+  useEffect(() => {
+    if (!window.electronAPI?.onUSBChange) return;
+    const cleanup = window.electronAPI.onUSBChange((data) => {
+      setUSBAlert(data);
+      setMode("quick");
+      clearTimeout(usbAlertTimeout.current);
+      usbAlertTimeout.current = setTimeout(() => {
+        setUSBAlert(null);
+        if (!isHovered) {
+          if (standbyBorderEnabled) setMode("quick");
+          else if (largeStandbyEnabled) setMode("large");
+          else setMode("still");
+        }
+      }, 3000);
+    });
+    return () => {
+      cleanup?.();
+      clearTimeout(usbAlertTimeout.current);
+    };
+  }, [isHovered, standbyBorderEnabled, largeStandbyEnabled]);
+
+  // Notification Center Polling
+  useEffect(() => {
+    if (window.electronAPI?.platform !== 'win32') return;
+    let isFirstFetch = true;
+    const fetchNotifications = async () => {
+      if (window.electronAPI?.getNotifications) {
+        try {
+          const notifs = await window.electronAPI.getNotifications();
+          const mapped = notifs.map(n => ({
+            id: n.Id,
+            appName: n.AppName || '',
+            appId: n.AppId || '',
+            title: n.Title || '',
+            body: n.Body || '',
+            timestamp: n.Timestamp || ''
+          }));
+          if (isFirstFetch) {
+            mapped.forEach(n => { if (n.id) seenNotificationIds.current.add(n.id); });
+            isFirstFetch = false;
+            const waNotif = mapped.find(n => {
+              const textCombined = `${n.title || ''} ${n.body || ''}`.toLowerCase();
+              const isWA = (n.appName?.toLowerCase().includes('whatsapp') || n.appId?.toLowerCase().includes('whatsapp'));
+              return isWA && (textCombined.includes('call') || textCombined.includes('ringing') || textCombined.includes('incoming') || textCombined.includes('voice') || textCombined.includes('video') || !n.body);
+            });
+            if (waNotif) {
+              const textCombined = `${waNotif.title || ''} ${waNotif.body || ''}`.toLowerCase();
+              const isVideo = textCombined.includes('video');
+              setWhatsappCall({
+                caller: waNotif.title || 'WhatsApp Contact',
+                callType: isVideo ? 'Video Call' : 'Voice Call',
+                active: true
+              });
+            }
+          } else {
+            const newNotifs = mapped.filter(n => n.id && !seenNotificationIds.current.has(n.id));
+            mapped.forEach(n => { if (n.id) seenNotificationIds.current.add(n.id); });
+            if (newNotifs.length > 0) {
+              const latest = newNotifs[newNotifs.length - 1];
+              const textCombined = `${latest.title || ''} ${latest.body || ''}`.toLowerCase();
+              const isWA = (latest.appName?.toLowerCase().includes('whatsapp') || latest.appId?.toLowerCase().includes('whatsapp'));
+              const isWACall = isWA && (
+                textCombined.includes('call') ||
+                textCombined.includes('ringing') ||
+                textCombined.includes('incoming') ||
+                textCombined.includes('voice') ||
+                textCombined.includes('video') ||
+                !latest.body ||
+                latest.body.trim().length === 0
+              );
+              if (isWACall) {
+                const isVideo = textCombined.includes('video');
+                setWhatsappCall({
+                  caller: latest.title || 'WhatsApp Contact',
+                  callType: isVideo ? 'Video Call' : 'Voice Call',
+                  active: true
+                });
+              } else {
+                setNotificationAlert(latest);
+                setMode("quick");
+                clearTimeout(notificationAlertTimeout.current);
+                notificationAlertTimeout.current = setTimeout(() => {
+                  setNotificationAlert(null);
+                  setMode("still");
+                }, 4000);
+              }
+            }
+          }
+          setNotificationsList(mapped);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    };
+    const initialDelay = setTimeout(() => {
+      fetchNotifications();
+    }, 2500);
+    const interval = setInterval(fetchNotifications, 5000);
+    return () => {
+      clearTimeout(initialDelay);
+      clearInterval(interval);
+      clearTimeout(notificationAlertTimeout.current);
+    };
+  }, []);
+
+  // WhatsApp Call Detection Polling
+  useEffect(() => {
+    if (window.electronAPI?.platform !== 'win32') return;
+    const checkCall = async () => {
+      if (window.electronAPI?.getWhatsAppCall) {
+        try {
+          const call = await window.electronAPI.getWhatsAppCall();
+          setWhatsappCall(call);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    };
+    checkCall();
+    const interval = setInterval(checkCall, 1200);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-activate quick mode for WhatsApp call
+  useEffect(() => {
+    if (whatsappCall) {
+      setMode("quick");
+    }
+  }, [whatsappCall]);
 
   useEffect(() => {
     const processCaptureQueue = () => {
@@ -1910,6 +2121,53 @@ export default function Island() {
     };
   }, [moveTab, visibleTabs, currentTabId]);
 
+  // Ctrl+Hover Click-Through
+  useEffect(() => {
+    const handleCtrlDown = (e) => {
+      if (e.key === 'Control' && isHovered) {
+        ctrlHeldRef.current = true;
+        setCtrlHeld(true);
+        window.electronAPI?.setIgnoreMouseEvents(true, true);
+      }
+    };
+    const handleCtrlUp = (e) => {
+      if (e.key === 'Control') {
+        ctrlHeldRef.current = false;
+        setCtrlHeld(false);
+        if (isHovered) {
+          window.electronAPI?.setIgnoreMouseEvents(false, true);
+        }
+      }
+    };
+    const handleBlur = () => {
+      if (ctrlHeldRef.current) {
+        ctrlHeldRef.current = false;
+        setCtrlHeld(false);
+      }
+    };
+    document.addEventListener('keydown', handleCtrlDown);
+    document.addEventListener('keyup', handleCtrlUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      document.removeEventListener('keydown', handleCtrlDown);
+      document.removeEventListener('keyup', handleCtrlUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [isHovered]);
+
+  // Ctrl+Hover safety timeout
+  useEffect(() => {
+    if (!ctrlHeld) return;
+    const maxHold = setTimeout(() => {
+      ctrlHeldRef.current = false;
+      setCtrlHeld(false);
+      if (isHovered) {
+        window.electronAPI?.setIgnoreMouseEvents(false, true);
+      }
+    }, 5000);
+    return () => clearTimeout(maxHold);
+  }, [ctrlHeld, isHovered]);
+
   useEffect(() => {
     const handleFocusOut = () => {
       // Reset album hover state when window loses focus
@@ -1959,11 +2217,11 @@ export default function Island() {
   const isFree = positionMode === "free";
   const getSideStyles = () => {
     switch (positionMode) {
-      case 'top-left': return { left: '15px', top: '15px', x: '0%' };
-      case 'top-right': return { left: 'calc(100% - 15px)', top: '15px', x: '-100%' };
+      case 'top-left': return { left: '15px', top: '6px', x: '0%' };
+      case 'top-right': return { left: 'calc(100% - 15px)', top: '6px', x: '-100%' };
       case 'bottom-left': return { left: '15px', top: 'auto', bottom: '45px', x: '0%' };
       case 'bottom-right': return { left: 'calc(100% - 15px)', top: 'auto', bottom: '45px', x: '-100%' };
-      case 'top-center': return { left: '49.8%', top: '20px', x: '-50%' };
+      case 'top-center': return { left: '49.8%', top: '6px', x: '-50%' };
       case 'bottom-center': return { left: '49.8%', top: 'auto', bottom: '45px', x: '-50%' };
       default: return { left: `${islandX}%`, top: `${islandY}px`, x: '-50%' };
     }
@@ -1979,13 +2237,19 @@ export default function Island() {
           mouseLeaveTimer.current = null;
         }
         setIsHovered(true);
-        setMode("large");
+        if (!ctrlHeldRef.current) {
+          setMode("large");
+        }
         if (window.electronAPI) {
           window.electronAPI.setIgnoreMouseEvents(false, true);
         }
       }}
       onMouseLeave={() => {
         suppressClick.current = false;
+        if (ctrlHeldRef.current) {
+          ctrlHeldRef.current = false;
+          setCtrlHeld(false);
+        }
         if (isDraggingRef.current) return;
         if (mouseLeaveTimer.current) clearTimeout(mouseLeaveTimer.current);
         mouseLeaveTimer.current = setTimeout(() => {
@@ -2043,6 +2307,7 @@ export default function Island() {
         backgroundColor: bgColor || "#000000",
         color: textColor || "#FFFFFF",
         scale: 1,
+        opacity: (ctrlHeld && isHovered) ? 0.15 : 1,
         x: sideStyles.x,
         borderRadius:
           mode === "large" && theme === "win95"
@@ -2144,10 +2409,219 @@ export default function Island() {
         );
       })()}
 
+      {/* Privacy Dots — persistent indicators for active camera/mic */}
+      {mode !== "large" && (cameraInUse || microphoneInUse) && (
+        <div style={{
+          position: 'absolute',
+          right: 8,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 998,
+          display: 'flex',
+          gap: 4,
+          pointerEvents: 'none'
+        }}>
+          <AnimatePresence>
+            {cameraInUse && (
+              <motion.div
+                key="privacy-dot-camera"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: '#34c759',
+                  boxShadow: '0 0 6px rgba(52, 199, 89, 0.7)'
+                }}
+              />
+            )}
+            {microphoneInUse && (
+              <motion.div
+                key="privacy-dot-mic"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: '#ff9500',
+                  boxShadow: '0 0 6px rgba(255, 149, 0, 0.7)'
+                }}
+              />
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/*WhatsApp Call Banner*/}
+      <AnimatePresence>
+        {whatsappCall && (
+          <motion.div
+            key="whatsapp-call-banner"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              height: '100%',
+              padding: '0 14px',
+              boxSizing: 'border-box',
+              position: 'absolute',
+              zIndex: 999
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 16,
+                fontWeight: 700,
+                color: '#fff',
+                flexShrink: 0
+              }}>
+                <WhatsAppLogo size={20} color="#ffffff" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {whatsappCall.caller || 'Unknown'}
+                </span>
+                <span style={{ fontSize: 11, opacity: 0.6, color: textColor }}>
+                  {whatsappCall.callType || 'Voice Call'} &middot; WhatsApp
+                </span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.electronAPI?.declineWhatsAppCall();
+                  setWhatsappCall(null);
+                }}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: '#ff3b30',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={18} color="#fff" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.electronAPI?.answerWhatsAppCall();
+                  setWhatsappCall(null);
+                }}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: '#34c759',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <Phone size={18} color="#fff" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/*Quickview*/}
-      {mode !== "large" && (mode === "quick" || (mode === "still" && showInfoWhenIdleEnabled) || (mode === "still" && (isPlaying || showPausedQuickView || isTimerRunning || timerSeconds > 0)) || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert) ? (
+      {!whatsappCall && mode !== "large" && (mode === "quick" || (mode === "still" && showInfoWhenIdleEnabled) || (mode === "still" && (isPlaying || showPausedQuickView || isTimerRunning || timerSeconds > 0)) || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert || keyLockAlert || usbAlert || notificationAlert) ? (
         <AnimatePresence mode="wait">
-          {(isPlaying || showPausedQuickView) && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert && !isTimerRunning && timerSeconds === 0 ? (
+          {notificationAlert && !keyLockAlert && !usbAlert ? (
+            <motion.div
+              key={`notif-alert-${notificationAlert.id}`}
+              initial={{ opacity: 0, filter: 'blur(4px)', scale: 0.98 }}
+              animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }}
+              exit={{ opacity: 0, filter: 'blur(4px)', scale: 0.98 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                width: '100%',
+                padding: '0 14px',
+                gap: 8,
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+                cursor: 'pointer'
+              }}
+              onClick={() => {
+                if (notificationAlert.appId && window.electronAPI?.focusNotificationApp) {
+                  window.electronAPI.focusNotificationApp(notificationAlert.appId);
+                }
+                setNotificationAlert(null);
+                clearTimeout(notificationAlertTimeout.current);
+              }}
+            >
+              {notificationAlert.icon ? (
+                <img
+                  src={notificationAlert.icon}
+                  alt=""
+                  style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                />
+              ) : (
+                <div style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  background: notificationAlert.appName?.toLowerCase().includes('whatsapp')
+                    ? 'linear-gradient(135deg, #25D366, #128C7E)'
+                    : notificationAlert.appName?.toLowerCase().includes('spotify')
+                    ? '#1db954'
+                    : notificationAlert.appName?.toLowerCase().includes('discord')
+                    ? '#5865F2'
+                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  flexShrink: 0,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+                }}>
+                  {notificationAlert.appName?.toLowerCase().includes('whatsapp') ? (
+                    <WhatsAppLogo size={14} color="#ffffff" />
+                  ) : (
+                    notificationAlert.appName?.[0]?.toUpperCase() || <Bell size={12} color="#fff" />
+                  )}
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, gap: 1 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.04em', color: textColor, lineHeight: 1 }}>
+                  {notificationAlert.appName}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2 }}>
+                  {notificationAlert.title || notificationAlert.body}
+                </span>
+              </div>
+            </motion.div>
+          ) : (isPlaying || showPausedQuickView) && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert && !keyLockAlert && !usbAlert && !notificationAlert && !isTimerRunning && timerSeconds === 0 ? (
             <motion.div
               key={spotifyTrack?.name ? `playing-${spotifyTrack.name}-${spotifyTrack.artist}` : "playing"}
               initial={{ opacity: 0, filter: 'blur(4px)', scale: 0.98 }}
@@ -2278,7 +2752,7 @@ export default function Island() {
             </motion.div>
           ) : (
             <motion.div
-              key={chargingAlert ? "charging" : alert ? "battery" : bluetoothAlert ? "bluetooth" : cameraAlert ? "camera" : microphoneAlert ? "microphone" : (isTimerRunning || timerSeconds > 0) ? "timer" : "time"}
+              key={keyLockAlert ? "keylock" : usbAlert ? "usb" : chargingAlert ? "charging" : alert ? "battery" : bluetoothAlert ? "bluetooth" : cameraAlert ? "camera" : microphoneAlert ? "microphone" : (isTimerRunning || timerSeconds > 0) ? "timer" : "time"}
               initial={{ opacity: 0, filter: 'blur(4px)', scale: 0.98 }}
               animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }}
               exit={{ opacity: 0, filter: 'blur(4px)', scale: 0.98 }}
@@ -2295,7 +2769,7 @@ export default function Island() {
                   fontSize: 16,
                   fontWeight: 600,
                   margin: 0,
-                  color: chargingAlert ? "#6fff7bff" : alert ? "#ff3f3fff" : cameraAlert ? "#ffff00ff" : microphoneAlert ? "#ff9a00ff" : (isTimerRunning || timerSeconds > 0) ? "#ff9500" : textColor,
+                  color: keyLockAlert ? "#4cc9f0ff" : usbAlert ? (usbAlert.action === "connected" ? "#34c759ff" : "#ff9500ff") : chargingAlert ? "#6fff7bff" : alert ? "#ff3f3fff" : cameraAlert ? "#ffff00ff" : microphoneAlert ? "#ff9a00ff" : (isTimerRunning || timerSeconds > 0) ? "#ff9500" : textColor,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -2303,7 +2777,11 @@ export default function Island() {
                   lineHeight: 1
                 }}
               >
-                {chargingAlert ? (
+                {keyLockAlert ? (
+                  <span style={{ fontSize: 18, fontWeight: 800, fontFamily: 'monospace' }}>{keyLockAlert.key === 'CapsLock' ? 'A' : '#'}</span>
+                ) : usbAlert ? (
+                  <Usb size={20} color={usbAlert.action === "connected" ? "#34c759" : "#ff9500"} />
+                ) : chargingAlert ? (
                   <Zap size={20} color="#6fff7b" />
                 ) : alert ? (
                   <Zap size={20} color="#ff3f3f" />
@@ -2324,27 +2802,36 @@ export default function Island() {
                   top: "50%",
                   right: "18px",
                   transform: "translateY(-50%)",
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: 600,
                   margin: 0,
-                  color: chargingAlert
-                    ? "#6fff7bff"
-                    : alert
-                      ? "#ff3f3fff"
-                      : cameraAlert
-                        ? "#ffff00ff"
-                        : microphoneAlert
-                          ? "#ff9a00ff"
-                          : volumeAlert
-                            ? "#4cc9f0ff"
-                            : (isTimerRunning || timerSeconds > 0)
-                              ? "#ff9500"
-                              : `${textColor}`,
+                  maxWidth: '175px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  color: keyLockAlert
+                    ? "#4cc9f0ff"
+                    : usbAlert
+                      ? (usbAlert.action === "connected" ? "#34c759ff" : "#ff9500ff")
+                      : chargingAlert
+                        ? "#6fff7bff"
+                        : alert
+                          ? "#ff3f3fff"
+                          : cameraAlert
+                            ? "#ffff00ff"
+                            : microphoneAlert
+                              ? "#ff9a00ff"
+                              : volumeAlert
+                                ? "#4cc9f0ff"
+                                : (isTimerRunning || timerSeconds > 0)
+                                  ? "#ff9500"
+                                  : `${textColor}`,
                   display: 'flex',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  justifyContent: 'flex-end'
                 }}
               >
-                {alert === true ? (percent !== null ? `${percent}%` : '--') : chargingAlert === true ? (percent !== null ? `${percent}%` : '--') : standbyBorderEnabled ? (percent !== null ? `${percent}%` : '--') : cameraAlert ? "Camera" : microphoneAlert ? "Microphone" : volumeAlert ? `${volumeLevel}%` : bluetoothAlert ? "Connected" : (isTimerRunning || timerSeconds > 0) ? (
+                {keyLockAlert ? `${keyLockAlert.key === 'CapsLock' ? 'Caps Lock' : 'Num Lock'} ${keyLockAlert.state ? 'ON' : 'OFF'}` : usbAlert ? `${usbAlert.name} ${usbAlert.action}` : alert === true ? (percent !== null ? `${percent}%` : '--') : chargingAlert === true ? (percent !== null ? `${percent}%` : '--') : standbyBorderEnabled ? (percent !== null ? `${percent}%` : '--') : cameraAlert ? "Camera" : microphoneAlert ? "Microphone" : volumeAlert ? `${volumeLevel}%` : bluetoothAlert ? cleanBluetoothDeviceName(bluetooth.devices?.[0]) : (isTimerRunning || timerSeconds > 0) ? (
                   <span>{formatTimerMMSS(timerSeconds)}</span>
                 ) : (typeof weather.temp === "number" && !isNaN(weather.temp)) ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -2945,7 +3432,16 @@ export default function Island() {
                   </div>
                 ) : (
                   notificationsList.map((notif, idx) => (
-                    <div key={`notif-${idx}`} className="notification-card">
+                    <div
+                      key={notif.id || `notif-${idx}`}
+                      className="notification-card"
+                      onClick={() => {
+                        if (notif.appId && window.electronAPI?.focusNotificationApp) {
+                          window.electronAPI.focusNotificationApp(notif.appId);
+                        }
+                      }}
+                      style={{ cursor: notif.appId ? 'pointer' : 'default' }}
+                    >
                       {notif.icon ? (
                         <img src={notif.icon} className="notification-icon" alt="" />
                       ) : (
@@ -2954,12 +3450,21 @@ export default function Island() {
                         </div>
                       )}
                       <div className="notification-content">
+                        {notif.appName && (
+                          <span className="notification-app-name">{notif.appName}</span>
+                        )}
                         <span className="notification-title">{notif.title}</span>
                         <span className="notification-body">{notif.body}</span>
                       </div>
                       <button
                         className="notification-dismiss"
-                        onClick={() => setNotificationsList(prev => prev.filter((_, i) => i !== idx))}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (notif.id && window.electronAPI?.dismissNotification) {
+                            window.electronAPI.dismissNotification(notif.id);
+                          }
+                          setNotificationsList(prev => prev.filter((_, i) => i !== idx));
+                        }}
                       >
                         <X size={14} />
                       </button>
