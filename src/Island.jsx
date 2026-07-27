@@ -854,9 +854,9 @@ const ScrollingTitle = ({ text = "", fontSize = 16 }) => {
 export default function Island() {
   const [time, setTime] = useState(null);
   const [mode, setMode] = useState("still");
-  const [tabOrder, setTabOrder] = useState(() => JSON.parse(localStorage.getItem("tab-order") || "[0,1,2,3,4,5,6,7,8,10,9]"));
-  const [hiddenTabs, setHiddenTabs] = useState(() => JSON.parse(localStorage.getItem("hidden-tabs") || "[]"));
-  const [defaultTabId, setDefaultTabId] = useState(() => Number(localStorage.getItem("default-tab") || 0));
+  const [tabOrder, setTabOrder] = useState(() => JSON.parse(localStorage.getItem("tab-order") || "[2,4,5,6,7,8,10,0,1,3,9]"));
+  const [hiddenTabs, setHiddenTabs] = useState(() => JSON.parse(localStorage.getItem("hidden-tabs") || "[6]"));
+  const [defaultTabId, setDefaultTabId] = useState(() => Number(localStorage.getItem("default-tab") || 2));
 
   const moveTabOrder = (fromIdx, toIdx) => {
     if (toIdx < 0 || toIdx >= tabOrder.length) return;
@@ -897,7 +897,7 @@ export default function Island() {
   );
   const [hourFormat, setHourFormat] = useState((localStorage.getItem("hour-format") || "12-hr") === "12-hr");
   const [weather, setWeather] = useState({ temp: "", status: "", humidity: "", wind: "" });
-  const [weatherUnit, setweatherUnit] = useState(localStorage.getItem("weather-unit") || "f");
+  const [weatherUnit, setweatherUnit] = useState(localStorage.getItem("weather-unit") || "c");
   const [theme, setTheme] = useState("default");
   const [bgColor, setBgColor] = useState(localStorage.getItem("bg-color") || "#000000");
   const [textColor, setTextColor] = useState(localStorage.getItem("text-color") || "#FFFFFF");
@@ -1039,10 +1039,10 @@ export default function Island() {
     setIsDragging(val);
   };
   const [displays, setDisplays] = useState([]);
-  const [currentDisplayId, setCurrentDisplayId] = useState(localStorage.getItem("display-id") || "");
-  const [weatherLocation, setWeatherLocation] = useState(localStorage.getItem("location") || "");
-  const [autoLaunchEnabled, setAutoLaunchEnabled] = useState(localStorage.getItem("auto-launch") === "true");
-  const [positionMode, setPositionMode] = useState(localStorage.getItem("position-mode") || localStorage.getItem("side-mode") || "free");
+  const [currentDisplayId, setCurrentDisplayId] = useState(localStorage.getItem("display-id") || "2287529652");
+  const [weatherLocation, setWeatherLocation] = useState(localStorage.getItem("location") || "Chattogram");
+  const [autoLaunchEnabled, setAutoLaunchEnabled] = useState(localStorage.getItem("auto-launch") !== "false");
+  const [positionMode, setPositionMode] = useState(localStorage.getItem("position-mode") || localStorage.getItem("side-mode") || "top-center");
 
   const [islandX, setIslandX] = useState(() => {
     const saved = localStorage.getItem("island-x");
@@ -1301,13 +1301,20 @@ export default function Island() {
       "island-border": "false",
       "hide-island-notactive": "false",
       "standby-mode": "false",
+      "large-standby-mode": "false",
+      "show-info-when-idle": "true",
       "hour-format": "12-hr",
       "island-x": "50",
       "island-y": "6",
       "bg-color": "#000000",
       "text-color": "#FFFFFF",
-      "weather-unit": "f",
-      "auto-launch": "false"
+      "weather-unit": "c",
+      "auto-launch": "true",
+      "position-mode": "top-center",
+      "location": "Chattogram",
+      "display-id": "2287529652",
+      "tab-order": "[2,4,5,6,7,8,10,0,1,3,9]",
+      "hidden-tabs": "[6]"
     };
     for (const [key, val] of Object.entries(defaults)) {
       if (!localStorage.getItem(key)) {
