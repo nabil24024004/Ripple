@@ -51,7 +51,7 @@ Download the latest release for your platform:
 - **macOS**: `.dmg` package (Intel & Apple Silicon supported)
 - **Linux**: `.deb` or `.rpm` packages
 
-[Download Latest Release](https://github.com/TopMyster/Ripple/releases)
+[Download Latest Release](https://github.com/nabil24024004/Ripple/releases)
 
 ### First Run
 1. Install and launch Ripple
