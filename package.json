@@ -22,6 +22,7 @@
     "@electron-forge/maker-deb": "^7.8.1",
     "@electron-forge/maker-dmg": "^7.10.2",
     "@electron-forge/maker-rpm": "^7.8.1",
+    "@electron-forge/maker-squirrel": "^7.11.2",
     "@electron-forge/maker-wix": "^7.8.1",
     "@electron-forge/maker-zip": "^7.11.1",
     "@electron-forge/plugin-auto-unpack-natives": "^7.8.1",
@@ -30,6 +31,7 @@
     "@electron/fuses": "^1.8.0",
     "@electron/notarize": "^2.5.0",
     "electron": "^38.7.2",
+    "electron-builder": "^26.15.3",
     "vite": "^5.4.19"
   },
   "dependencies": {
@@ -46,6 +48,7 @@
   "allowScripts": {
     "electron@38.7.2": true,
     "esbuild@0.21.5": true,
-    "@bitdisaster/exe-icon-extractor@1.0.10": true
+    "@bitdisaster/exe-icon-extractor@1.0.10": true,
+    "electron-winstaller": true
   }
 }

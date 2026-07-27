@@ -4,6 +4,7 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
 module.exports = {
   packagerConfig: {
+    electronDist: require('path').join(__dirname, 'node_modules/electron/dist'),
     asar: true,
     executableName: 'ripple',
     icon: 'src/assets/icons/icon',
@@ -18,6 +19,7 @@ module.exports = {
   },
   hooks: {
     postPackage: async (forgeConfig, options) => {
+      console.log('POST PACKAGE OUTPUT PATHS:', options.outputPaths);
       if (options.platform !== 'darwin') return;
       console.log('Signing application with entitlements...');
       const { execSync } = require('child_process');
@@ -84,6 +86,16 @@ module.exports = {
   },
   rebuildConfig: {},
   makers: [
+    {
+      name: '@electron-forge/maker-squirrel',
+      config: {
+        name: 'ripple',
+        authors: 'TopMyster',
+        description: 'A Dynamic Island for All',
+        iconUrl: 'https://raw.githubusercontent.com/TopMyster/Ripple/main/src/assets/icons/icon.ico',
+        setupIcon: path.join(__dirname, 'src/assets/icons/icon.ico')
+      }
+    },
     {
       name: '@electron-forge/maker-wix',
       config: {
@@ -156,19 +168,5 @@ module.exports = {
         ],
       },
     },
-    {
-      name: '@electron-forge/plugin-auto-unpack-natives',
-      config: {},
-    },
-
-    new FusesPlugin({
-      version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: false,
-      [FuseV1Options.EnableCookieEncryption]: false,
-      [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
-      [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
-    }),
   ],
 };
