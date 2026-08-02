@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 const {
   app,
   BrowserWindow,
@@ -923,21 +923,10 @@ ipcMain.handle("get-camera-status", async () => {
         resolve(stdout ? stdout.includes('= Yes') : false);
       });
     } else if (platform === "win32") {
-      const psScript = `
-        $inUse = $false
-        $keys = Get-ChildItem -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\webcam" -Recurse -ErrorAction SilentlyContinue
-        foreach ($key in $keys) {
-            $val = Get-ItemProperty -Path $key.PSPath -Name "LastUsedTimeStop" -ErrorAction SilentlyContinue
-            if ($val -and $val.LastUsedTimeStop -eq 0) {
-                $inUse = $true
-                break
-            }
-        }
-        $inUse
-      `;
-      exec(`powershell -NoProfile -Command "${psScript}"`, (error, stdout) => {
-        if (error) return resolve(false);
-        resolve(stdout.trim().toLowerCase() === "true");
+      execFile("reg", ["query", "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\webcam", "/s"], (error, stdout) => {
+        if (error || !stdout) return resolve(false);
+        const matches = stdout.match(/LastUsedTimeStop\s+REG_QWORD\s+0x0\b/i);
+        resolve(!!matches);
       });
     } else if (platform === "linux") {
       exec("fuser /dev/video* 2>/dev/null", (error, stdout) => {
@@ -957,10 +946,10 @@ ipcMain.handle("get-microphone-status", async () => {
         resolve(stdout ? stdout.trim().length > 0 : false);
       });
     } else if (platform === "win32") {
-      const psScript = `@(Get-ChildItem -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone" -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Get-ItemProperty -Path $_.PSPath -Name "LastUsedTimeStop" -ErrorAction SilentlyContinue } | Where-Object { $_ -and $_.LastUsedTimeStop -eq 0 }).Count -gt 0`;
-      exec(`powershell -NoProfile -Command "${psScript}"`, (error, stdout) => {
-        if (error) return resolve(false);
-        resolve(stdout.trim().toLowerCase() === "true");
+      execFile("reg", ["query", "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone", "/s"], (error, stdout) => {
+        if (error || !stdout) return resolve(false);
+        const matches = stdout.match(/LastUsedTimeStop\s+REG_QWORD\s+0x0\b/i);
+        resolve(!!matches);
       });
     } else if (platform === "linux") {
       exec("pactl list source-outputs | grep -q 'Source #'", (error) => {
