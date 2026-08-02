@@ -27,9 +27,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getNotifications: () => ipcRenderer.invoke('get-notifications'),
   dismissNotification: (id) => ipcRenderer.invoke('dismiss-notification', id),
   focusNotificationApp: (appId) => ipcRenderer.invoke('focus-notification-app', appId),
-  getWhatsAppCall: () => ipcRenderer.invoke('get-whatsapp-call'),
-  answerWhatsAppCall: () => ipcRenderer.invoke('answer-whatsapp-call'),
-  declineWhatsAppCall: () => ipcRenderer.invoke('decline-whatsapp-call'),
   onKeyLockChange: (callback) => {
     const handler = (event, data) => callback(data);
     ipcRenderer.on('key-lock-change', handler);

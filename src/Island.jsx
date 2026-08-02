@@ -1,20 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Mic, SkipBackIcon, Play, Pause, SkipForwardIcon, Music, Headphones, Zap, Settings, Sun, Cloud, Droplets, Trash2, ChevronRight, ChevronLeft, Plus, Check, X, CloudRain, CloudSnow, CloudLightning, CloudSun, Moon, Eye, EyeOff, GripVertical, List, Search, Star, Calendar as CalendarIcon, Bell, BellOff, AlarmClock, Timer, Activity, Cpu, Clock, Volume2, VolumeX, Wind, RotateCcw, Thermometer, Radio, Phone, Usb } from "lucide-react";
+import { Camera, Mic, SkipBackIcon, Play, Pause, SkipForwardIcon, Music, Headphones, Zap, Settings, Sun, Cloud, Trash2, ChevronRight, ChevronLeft, Check, X, CloudRain, CloudSnow, CloudLightning, CloudSun, Moon, Eye, EyeOff, GripVertical, List, Search, Star, Calendar as CalendarIcon, Bell, BellOff, AlarmClock, Timer, Activity, Clock, Volume2, VolumeX, Wind, Usb } from "lucide-react";
 import "./App.css";
 
-const WhatsAppLogo = ({ size = 16, color = "#ffffff" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <path
-      fill={color}
-      d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414-.074-.124-.272-.198-.57-.347z"
-    />
-    <path
-      fill={color}
-      d="M12.012 2c-5.506 0-9.989 4.478-9.989 9.984 0 1.758.459 3.472 1.33 4.982l-1.413 5.163 5.281-1.385c1.455.794 3.097 1.224 4.791 1.225 5.507 0 9.989-4.479 9.989-9.985s-4.482-9.984-9.989-9.984zm0 18.288c-1.492 0-2.955-.401-4.232-1.158l-.304-.18-3.146.825.839-3.067-.198-.315c-.832-1.325-1.272-2.862-1.272-4.409 0-4.568 3.717-8.283 8.313-8.283 4.594 0 8.312 3.715 8.312 8.283 0 4.569-3.718 8.284-8.312 8.284z"
-    />
-  </svg>
-);
+
 
 // Helper format timer MM:SS
 function formatTimerMMSS(totalSec) {
@@ -535,55 +524,6 @@ const WaveformScrubber = ({ position = 0, duration = 0, isPlaying = false, onSee
   );
 };
 
-const SmallTopRightBattery = ({ percent = 100, charging = false }) => {
-  const isLow = percent <= 20 && !charging;
-  const fillBg = isLow ? '#ff3b30' : '#34c759';
-
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, userSelect: 'none' }}>
-      <div
-        style={{
-          position: 'relative',
-          width: 38,
-          height: 17,
-          background: fillBg,
-          borderRadius: 5,
-          border: '1px solid rgba(255,255,255,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '0 2px',
-          boxSizing: 'border-box',
-          boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 1, zIndex: 2 }}>
-          {charging && <Zap size={9} color="#ffffff" fill="#ffffff" />}
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 800,
-              color: '#ffffff',
-              fontFamily: 'OpenRunde, system-ui, sans-serif',
-              letterSpacing: '-0.3px',
-              textShadow: '0 1px 2px rgba(0,0,0,0.4)'
-            }}
-          >
-            {percent}%
-          </span>
-        </div>
-      </div>
-      <div
-        style={{
-          width: 2.5,
-          height: 7,
-          background: 'rgba(255,255,255,0.6)',
-          borderRadius: '0 2px 2px 0'
-        }}
-      />
-    </div>
-  );
-};
 
 const FlipCard = ({ digit }) => {
   const [currentDigit, setCurrentDigit] = useState(digit);
@@ -947,8 +887,7 @@ export default function Island() {
   const [usbAlert, setUSBAlert] = useState(null);
   const usbAlertTimeout = useRef(null);
 
-  // WhatsApp Call State
-  const [whatsappCall, setWhatsappCall] = useState(null);
+
 
   // Live Notification Alert State
   const [notificationAlert, setNotificationAlert] = useState(null);
@@ -1239,12 +1178,10 @@ export default function Island() {
   const textWidth = measureTextWidth(nowPlayingText) || (nowPlayingText.length * 7);
   const hoverExtraWidth = 36;
   const nowPlayingWidth = isHovered ? 135 : 110;
-  const width = whatsappCall
-    ? 320
-    : notificationAlert
+  const width = notificationAlert
     ? 300
     : mode === "large"
-    ? (currentTab === 9 ? 495 : currentTab === 1 ? 390 : currentTab === 10 ? 370 : currentTab === 0 ? 405 : currentTab === 4 ? 360 : currentTab === 6 ? 340 : currentTab === 3 ? 380 : 380)
+    ? (currentTab === 9 ? 495 : currentTab === 1 ? 390 : currentTab === 10 ? 370 : currentTab === 0 ? 405 : currentTab === 4 ? 400 : currentTab === 6 ? 340 : currentTab === 3 ? 380 : 380)
     : (mode === "quick" && isPlaying && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert && !volumeAlert && !keyLockAlert && !usbAlert && !notificationAlert)
       ? nowPlayingWidth
       : (mode === "quick" || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert || volumeAlert || keyLockAlert || usbAlert || notificationAlert)
@@ -1252,12 +1189,10 @@ export default function Island() {
         : isPlaying
           ? nowPlayingWidth
           : 170;
-  const height = whatsappCall
-    ? 60
-    : notificationAlert
+  const height = notificationAlert
     ? 46
     : mode === "large"
-    ? (currentTab === 9 ? (positionMode === "free" ? 435 : 355) : currentTab === 8 ? 180 : currentTab === 1 ? 272 : currentTab === 4 ? 188 : currentTab === 5 ? 240 : currentTab === 6 ? 180 : currentTab === 10 ? 192 : currentTab === 3 ? 185 : currentTab === 0 ? 120 : 190)
+    ? (currentTab === 9 ? (positionMode === "free" ? 435 : 355) : currentTab === 8 ? 180 : currentTab === 1 ? 272 : currentTab === 4 ? 210 : currentTab === 5 ? 240 : currentTab === 6 ? 180 : currentTab === 10 ? 192 : currentTab === 3 ? 185 : currentTab === 0 ? 120 : 190)
     : 40;
 
   useEffect(() => {
@@ -1703,8 +1638,15 @@ export default function Island() {
     return () => clearInterval(interval);
   }, []);
 
+  const prevBluetoothConnected = useRef(null);
   useEffect(() => {
-    if (bluetooth.connected === true) {
+    const wasConnected = prevBluetoothConnected.current;
+    const isConnected = bluetooth.connected === true;
+    prevBluetoothConnected.current = isConnected;
+
+    // Only show alert on a genuine false → true transition (device just connected),
+    // not on initial load or when the device was already connected before.
+    if (isConnected && wasConnected === false) {
       setMode("quick");
       setBluetoothAlert(true);
       const timerId = setTimeout(() => {
@@ -1834,52 +1776,18 @@ export default function Island() {
           if (isFirstFetch) {
             mapped.forEach(n => { if (n.id) seenNotificationIds.current.add(n.id); });
             isFirstFetch = false;
-            const waNotif = mapped.find(n => {
-              const textCombined = `${n.title || ''} ${n.body || ''}`.toLowerCase();
-              const isWA = (n.appName?.toLowerCase().includes('whatsapp') || n.appId?.toLowerCase().includes('whatsapp'));
-              return isWA && (textCombined.includes('call') || textCombined.includes('ringing') || textCombined.includes('incoming') || textCombined.includes('voice') || textCombined.includes('video') || !n.body);
-            });
-            if (waNotif) {
-              const textCombined = `${waNotif.title || ''} ${waNotif.body || ''}`.toLowerCase();
-              const isVideo = textCombined.includes('video');
-              setWhatsappCall({
-                caller: waNotif.title || 'WhatsApp Contact',
-                callType: isVideo ? 'Video Call' : 'Voice Call',
-                active: true
-              });
-            }
           } else {
             const newNotifs = mapped.filter(n => n.id && !seenNotificationIds.current.has(n.id));
             mapped.forEach(n => { if (n.id) seenNotificationIds.current.add(n.id); });
             if (newNotifs.length > 0) {
               const latest = newNotifs[newNotifs.length - 1];
-              const textCombined = `${latest.title || ''} ${latest.body || ''}`.toLowerCase();
-              const isWA = (latest.appName?.toLowerCase().includes('whatsapp') || latest.appId?.toLowerCase().includes('whatsapp'));
-              const isWACall = isWA && (
-                textCombined.includes('call') ||
-                textCombined.includes('ringing') ||
-                textCombined.includes('incoming') ||
-                textCombined.includes('voice') ||
-                textCombined.includes('video') ||
-                !latest.body ||
-                latest.body.trim().length === 0
-              );
-              if (isWACall) {
-                const isVideo = textCombined.includes('video');
-                setWhatsappCall({
-                  caller: latest.title || 'WhatsApp Contact',
-                  callType: isVideo ? 'Video Call' : 'Voice Call',
-                  active: true
-                });
-              } else {
-                setNotificationAlert(latest);
-                setMode("quick");
-                clearTimeout(notificationAlertTimeout.current);
-                notificationAlertTimeout.current = setTimeout(() => {
-                  setNotificationAlert(null);
-                  setMode("still");
-                }, 4000);
-              }
+              setNotificationAlert(latest);
+              setMode("quick");
+              clearTimeout(notificationAlertTimeout.current);
+              notificationAlertTimeout.current = setTimeout(() => {
+                setNotificationAlert(null);
+                setMode("still");
+              }, 4000);
             }
           }
           setNotificationsList(mapped);
@@ -1899,30 +1807,6 @@ export default function Island() {
     };
   }, []);
 
-  // WhatsApp Call Detection Polling
-  useEffect(() => {
-    if (window.electronAPI?.platform !== 'win32') return;
-    const checkCall = async () => {
-      if (window.electronAPI?.getWhatsAppCall) {
-        try {
-          const call = await window.electronAPI.getWhatsAppCall();
-          setWhatsappCall(call);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    };
-    checkCall();
-    const interval = setInterval(checkCall, 1200);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Auto-activate quick mode for WhatsApp call
-  useEffect(() => {
-    if (whatsappCall) {
-      setMode("quick");
-    }
-  }, [whatsappCall]);
 
   useEffect(() => {
     const processCaptureQueue = () => {
@@ -2141,15 +2025,19 @@ export default function Island() {
       if (e.key === 'Control') {
         ctrlHeldRef.current = false;
         setCtrlHeld(false);
-        if (isHovered) {
-          window.electronAPI?.setIgnoreMouseEvents(false, true);
-        }
+        // Always restore mouse events unconditionally — Ctrl release must
+        // always exit click-through regardless of hover state to avoid
+        // the window getting permanently stuck in click-through mode.
+        window.electronAPI?.setIgnoreMouseEvents(false, true);
       }
     };
     const handleBlur = () => {
+      // Window lost focus while Ctrl+Hover was active — restore mouse events
+      // so the island doesn't remain permanently click-through.
       if (ctrlHeldRef.current) {
         ctrlHeldRef.current = false;
         setCtrlHeld(false);
+        window.electronAPI?.setIgnoreMouseEvents(false, true);
       }
     };
     document.addEventListener('keydown', handleCtrlDown);
@@ -2244,11 +2132,15 @@ export default function Island() {
           mouseLeaveTimer.current = null;
         }
         setIsHovered(true);
-        if (!ctrlHeldRef.current) {
+        if (ctrlHeldRef.current) {
+          // Ctrl is already held on mouse enter — activate click-through immediately
+          setCtrlHeld(true);
+          window.electronAPI?.setIgnoreMouseEvents(true, true);
+        } else {
           setMode("large");
-        }
-        if (window.electronAPI) {
-          window.electronAPI.setIgnoreMouseEvents(false, true);
+          if (window.electronAPI) {
+            window.electronAPI.setIgnoreMouseEvents(false, true);
+          }
         }
       }}
       onMouseLeave={() => {
@@ -2465,100 +2357,8 @@ export default function Island() {
         </div>
       )}
 
-      {/*WhatsApp Call Banner*/}
-      <AnimatePresence>
-        {whatsappCall && (
-          <motion.div
-            key="whatsapp-call-banner"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              width: '100%',
-              height: '100%',
-              padding: '0 14px',
-              boxSizing: 'border-box',
-              position: 'absolute',
-              zIndex: 999
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-              <div style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #25D366, #128C7E)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 16,
-                fontWeight: 700,
-                color: '#fff',
-                flexShrink: 0
-              }}>
-                <WhatsAppLogo size={20} color="#ffffff" />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {whatsappCall.caller || 'Unknown'}
-                </span>
-                <span style={{ fontSize: 11, opacity: 0.6, color: textColor }}>
-                  {whatsappCall.callType || 'Voice Call'} &middot; WhatsApp
-                </span>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.electronAPI?.declineWhatsAppCall();
-                  setWhatsappCall(null);
-                }}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  border: 'none',
-                  backgroundColor: '#ff3b30',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer'
-                }}
-              >
-                <X size={18} color="#fff" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.electronAPI?.answerWhatsAppCall();
-                  setWhatsappCall(null);
-                }}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  border: 'none',
-                  backgroundColor: '#34c759',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer'
-                }}
-              >
-                <Phone size={18} color="#fff" />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/*Quickview*/}
-      {!whatsappCall && mode !== "large" && (mode === "quick" || (mode === "still" && showInfoWhenIdleEnabled) || (mode === "still" && (isPlaying || showPausedQuickView || isTimerRunning || timerSeconds > 0)) || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert || keyLockAlert || usbAlert || notificationAlert) ? (
+      {mode !== "large" && (mode === "quick" || (mode === "still" && showInfoWhenIdleEnabled) || (mode === "still" && (isPlaying || showPausedQuickView || isTimerRunning || timerSeconds > 0)) || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert || keyLockAlert || usbAlert || notificationAlert) ? (
         <AnimatePresence mode="wait">
           {notificationAlert && !keyLockAlert && !usbAlert ? (
             <motion.div
@@ -3017,10 +2817,6 @@ export default function Island() {
                   boxSizing: 'border-box',
                   position: 'relative'
                 }}>
-                  {/* Top Right Corner Sleek Battery Pill */}
-                  <div style={{ position: 'absolute', top: 12, right: 16, zIndex: 50 }}>
-                    <SmallTopRightBattery percent={percent} charging={charging} />
-                  </div>
 
                   {/* Center Retro Mechanical Split-Flap Flip Clock */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 10 }}>
@@ -3253,7 +3049,7 @@ export default function Island() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '16px 18px',
+                    padding: '12px 16px',
                     boxSizing: 'border-box',
                     gap: 16,
                     userSelect: 'none'
@@ -3262,8 +3058,8 @@ export default function Island() {
                   {/* Left Column: Hero Date Card */}
                   <div
                     style={{
-                      width: 128,
-                      height: 152,
+                      width: 118,
+                      height: '100%',
                       background: '#1b1b1f',
                       borderRadius: 16,
                       border: '1.5px solid #2c2c34',
@@ -3332,7 +3128,7 @@ export default function Island() {
                   </div>
 
                   {/* Right Column: Month Grid */}
-                  <div style={{ flex: 1, height: 152, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     {/* Calendar Month Nav Controls (Compact) */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
                       <button

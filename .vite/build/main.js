@@ -1,5 +1,5 @@
-"use strict";const{app:d,BrowserWindow:E,screen:T,ipcMain:l,shell:k,Tray:_,Menu:L,nativeImage:j,clipboard:b}=require("electron"),$=require("node:path"),m=require("fs"),O=require("os");process.platform==="linux"&&(d.commandLine.appendSwitch("enable-transparent-visuals"),d.commandLine.appendSwitch("disable-gpu-compositing"),d.disableHardwareAcceleration());let W=null,r=null;function q(){try{return $.join(d.getPath("userData"),"ripple-island.log")}catch{return $.join(process.cwd(),"ripple-island.log")}}function f(e,n=null){const i=`[${new Date().toISOString()}] ${e}${n?` | Error: ${n.stack||n}`:""}
-`;console.log(i.trim());try{const s=q();m.appendFileSync(s,i,"utf8")}catch{}}process.on("uncaughtException",e=>{f("UNCAUGHT EXCEPTION (Main Process)",e)});process.on("unhandledRejection",e=>{f("UNHANDLED REJECTION (Main Process)",e)});const{exec:c,execFile:C,spawn:A}=require("child_process");function h(e){return Buffer.from(e,"utf16le").toString("base64")}function B(){return new Promise(e=>{const t=Buffer.from(`
+"use strict";const{app:u,BrowserWindow:E,screen:b,ipcMain:l,shell:W,Tray:D,Menu:L,nativeImage:j,clipboard:P}=require("electron"),f=require("node:path"),m=require("fs"),I=require("os");process.platform==="linux"&&(u.commandLine.appendSwitch("enable-transparent-visuals"),u.commandLine.appendSwitch("disable-gpu-compositing"),u.disableHardwareAcceleration());let S=null,a=null;function B(){try{return f.join(u.getPath("userData"),"ripple-island.log")}catch{return f.join(process.cwd(),"ripple-island.log")}}function y(e,n=null){const s=`[${new Date().toISOString()}] ${e}${n?` | Error: ${n.stack||n}`:""}
+`;console.log(s.trim());try{const i=B();m.appendFileSync(i,s,"utf8")}catch{}}process.on("uncaughtException",e=>{y("UNCAUGHT EXCEPTION (Main Process)",e)});process.on("unhandledRejection",e=>{y("UNHANDLED REJECTION (Main Process)",e)});const{exec:c,execFile:C,spawn:T}=require("child_process");function M(e){return Buffer.from(e,"utf16le").toString("base64")}function q(){return new Promise(e=>{const t=Buffer.from(`
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $shell   = New-Object -ComObject WScript.Shell
 $dirs    = @("$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs","$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs")
@@ -19,7 +19,7 @@ foreach ($dir in $dirs) {
   }
 }
 @($results) | ConvertTo-Json -Compress -Depth 2
-`,"utf16le").toString("base64");c(`powershell -NoProfile -EncodedCommand ${t}`,{maxBuffer:5*1024*1024},(i,s)=>{if(i||!s)return e([]);try{const o=JSON.parse(s.trim());e(Array.isArray(o)?o:o?[o]:[])}catch{e([])}})})}function V(){return new Promise(e=>{const t=Buffer.from(`
+`,"utf16le").toString("base64");c(`powershell -NoProfile -EncodedCommand ${t}`,{maxBuffer:5*1024*1024},(s,i)=>{if(s||!i)return e([]);try{const o=JSON.parse(i.trim());e(Array.isArray(o)?o:o?[o]:[])}catch{e([])}})})}function J(){return new Promise(e=>{const t=Buffer.from(`
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $results = [System.Collections.Generic.List[object]]::new()
 Get-StartApps -EA SilentlyContinue | ForEach-Object {
@@ -28,15 +28,15 @@ Get-StartApps -EA SilentlyContinue | ForEach-Object {
   }
 }
 @($results) | ConvertTo-Json -Compress -Depth 2
-`,"utf16le").toString("base64");c(`powershell -NoProfile -EncodedCommand ${t}`,{maxBuffer:2*1024*1024},(i,s)=>{if(i||!s)return e([]);try{const o=JSON.parse(s.trim());e(Array.isArray(o)?o:o?[o]:[])}catch{e([])}})})}async function J(){const[e,n]=await Promise.all([B(),V()]),t=new Set,i=[];for(const s of[...e,...n]){if(!s.name||!(s.path||s.appId))continue;const o=s.type==="uwp"?`shell:AppsFolder\\${s.appId}`:s.path,a=o.toLowerCase();t.has(a)||(t.add(a),i.push({name:s.name,launch:o}))}return i.sort((s,o)=>s.name.localeCompare(o.name))}function P(e){const n=[];let t=0;for(;t<e.length;){for(;t<e.length&&/\s/.test(e[t]);)t++;if(t>=e.length)break;let i="";for(;t<e.length&&!/\s/.test(e[t]);)if(e[t]==='"'){for(t++;t<e.length&&e[t]!=='"';)i+=e[t++];t<e.length&&t++}else i+=e[t++];i&&n.push(i)}return n}function K(e){const n=e.replace(/\//g,"\\").replace(/%([^%]+)%/g,(o,a)=>process.env[a]||`%${a}%`),t=n.match(/^"([^"]+)"(.*)/);if(t)return{exe:t[1],args:t[2].trim()?P(t[2].trim()):[]};const i=n.match(/^(.+?\.(?:exe|cmd|bat|com|ps1))(?:\s+(.*))?$/i);if(i)return{exe:i[1],args:i[2]?P(i[2]):[]};const s=n.search(/\s/);return s===-1?{exe:n,args:[]}:{exe:n.slice(0,s),args:P(n.slice(s+1).trim())}}function H(e){const n=e.trim();if(n.startsWith("shell:")){const t=n.replace(/'/g,"''");c(`powershell -NoProfile -WindowStyle Hidden -Command "Start-Process '${t}'"`);return}if(/[\\\/]/.test(n)){const{exe:t,args:i}=K(n);if(i.length===0){if(t.toLowerCase().endsWith(".url")){try{const p=m.readFileSync(t,"utf8").match(/^URL=(.+)$/im);p&&k.openExternal(p[1].trim())}catch{}return}k.openPath(t).then(a=>{a&&c(`start "" "${t}"`)});return}const s=/[\\/]/.test(t)&&!/\.[^\\.]+$/.test(t)?t+".exe":t;if(/\.(cmd|bat)$/i.test(s)){const a=A("cmd.exe",["/c",s,...i],{shell:!1,detached:!0,stdio:"ignore"});a.on("error",()=>{}),a.unref();return}if(/\.ps1$/i.test(s)){const a=A("powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",s,...i],{shell:!1,detached:!0,stdio:"ignore"});a.on("error",()=>{}),a.unref();return}const o=A(s,i,{shell:!1,detached:!0,stdio:"ignore"});o.on("error",()=>{}),o.unref();return}if(n.includes(" ")){const t=n.replace(/'/g,"''");c(`powershell -NoProfile -WindowStyle Hidden -Command "Start-Process '${t}'"`)}else c(`start "" ${n}`)}l.handle("log-message",(e,n,t,i)=>{f(`[RENDERER ${String(n).toUpperCase()}] ${t} ${i?JSON.stringify(i):""}`)});l.handle("set-ignore-mouse-events",(e,n,t)=>{if(r&&!r.isDestroyed())try{if(process.platform!=="linux"){const i=t!==void 0?t:n;r.setIgnoreMouseEvents(n,{forward:i}),f(`setIgnoreMouseEvents(${n}, forward=${i}) executed`)}else r.setIgnoreMouseEvents(n),f(`setIgnoreMouseEvents(${n}) executed (linux)`)}catch(i){f("Error in setIgnoreMouseEvents, falling back to forward=true",i);try{r.setIgnoreMouseEvents(!0,{forward:!0})}catch{}}});l.handle("focus-window",()=>{r&&r.focus()});l.handle("open-external",async(e,n)=>{await k.openExternal(n)});l.handle("launch-app",async(e,n)=>{const t=process.platform;t==="darwin"?c(`open -a "${n}"`):t==="win32"?H(n):c(n)});l.handle("build-app-cache",async()=>{if(process.platform!=="win32")return;const e=$.join(d.getPath("userData"),"app-cache.json");try{const n=await J();m.writeFileSync(e,JSON.stringify(n))}catch{}});l.handle("search-apps",async(e,n)=>{if(process.platform!=="win32"||!n)return[];const t=$.join(d.getPath("userData"),"app-cache.json");try{if(!m.existsSync(t))return[];const i=JSON.parse(m.readFileSync(t,"utf8")),s=n.toLowerCase();return i.filter(o=>o.name&&o.name.toLowerCase().includes(s)).slice(0,8)}catch{return[]}});l.handle("get-displays",()=>T.getAllDisplays().map(n=>({id:n.id,label:n.label||`Display ${n.id}`,bounds:n.bounds})));l.handle("set-display",(e,n)=>{if(r){const i=T.getAllDisplays().find(u=>u.id.toString()===n.toString())||T.getPrimaryDisplay(),{x:s,y:o,width:a,height:p}=i.bounds;process.platform,r.setBounds({x:s,y:o,width:a,height:p}),r.show()}});l.handle("update-window-position",(e,n,t)=>{});l.handle("set-auto-launch",(e,n)=>{if(process.platform==="linux"){const t=$.join(d.getPath("home"),".config","autostart"),i=$.join(t,"ripple.desktop");try{if(n){m.existsSync(t)||m.mkdirSync(t,{recursive:!0});const s=`[Desktop Entry]
+`,"utf16le").toString("base64");c(`powershell -NoProfile -EncodedCommand ${t}`,{maxBuffer:2*1024*1024},(s,i)=>{if(s||!i)return e([]);try{const o=JSON.parse(i.trim());e(Array.isArray(o)?o:o?[o]:[])}catch{e([])}})})}async function K(){const[e,n]=await Promise.all([q(),J()]),t=new Set,s=[];for(const i of[...e,...n]){if(!i.name||!(i.path||i.appId))continue;const o=i.type==="uwp"?`shell:AppsFolder\\${i.appId}`:i.path,r=o.toLowerCase();t.has(r)||(t.add(r),s.push({name:i.name,launch:o}))}return s.sort((i,o)=>i.name.localeCompare(o.name))}function k(e){const n=[];let t=0;for(;t<e.length;){for(;t<e.length&&/\s/.test(e[t]);)t++;if(t>=e.length)break;let s="";for(;t<e.length&&!/\s/.test(e[t]);)if(e[t]==='"'){for(t++;t<e.length&&e[t]!=='"';)s+=e[t++];t<e.length&&t++}else s+=e[t++];s&&n.push(s)}return n}function H(e){const n=e.replace(/\//g,"\\").replace(/%([^%]+)%/g,(o,r)=>process.env[r]||`%${r}%`),t=n.match(/^"([^"]+)"(.*)/);if(t)return{exe:t[1],args:t[2].trim()?k(t[2].trim()):[]};const s=n.match(/^(.+?\.(?:exe|cmd|bat|com|ps1))(?:\s+(.*))?$/i);if(s)return{exe:s[1],args:s[2]?k(s[2]):[]};const i=n.search(/\s/);return i===-1?{exe:n,args:[]}:{exe:n.slice(0,i),args:k(n.slice(i+1).trim())}}function V(e){const n=e.trim();if(n.startsWith("shell:")){const t=n.replace(/'/g,"''");c(`powershell -NoProfile -WindowStyle Hidden -Command "Start-Process '${t}'"`);return}if(/[\\\/]/.test(n)){const{exe:t,args:s}=H(n);if(s.length===0){if(t.toLowerCase().endsWith(".url")){try{const p=m.readFileSync(t,"utf8").match(/^URL=(.+)$/im);p&&W.openExternal(p[1].trim())}catch{}return}W.openPath(t).then(r=>{r&&c(`start "" "${t}"`)});return}const i=/[\\/]/.test(t)&&!/\.[^\\.]+$/.test(t)?t+".exe":t;if(/\.(cmd|bat)$/i.test(i)){const r=T("cmd.exe",["/c",i,...s],{shell:!1,detached:!0,stdio:"ignore"});r.on("error",()=>{}),r.unref();return}if(/\.ps1$/i.test(i)){const r=T("powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",i,...s],{shell:!1,detached:!0,stdio:"ignore"});r.on("error",()=>{}),r.unref();return}const o=T(i,s,{shell:!1,detached:!0,stdio:"ignore"});o.on("error",()=>{}),o.unref();return}if(n.includes(" ")){const t=n.replace(/'/g,"''");c(`powershell -NoProfile -WindowStyle Hidden -Command "Start-Process '${t}'"`)}else c(`start "" ${n}`)}l.handle("log-message",(e,n,t,s)=>{y(`[RENDERER ${String(n).toUpperCase()}] ${t} ${s?JSON.stringify(s):""}`)});l.handle("set-ignore-mouse-events",(e,n,t)=>{if(a&&!a.isDestroyed())try{if(process.platform!=="linux"){const s=t!==void 0?t:n;a.setIgnoreMouseEvents(n,{forward:s}),y(`setIgnoreMouseEvents(${n}, forward=${s}) executed`)}else a.setIgnoreMouseEvents(n),y(`setIgnoreMouseEvents(${n}) executed (linux)`)}catch(s){y("Error in setIgnoreMouseEvents, falling back to forward=true",s);try{a.setIgnoreMouseEvents(!0,{forward:!0})}catch{}}});l.handle("focus-window",()=>{a&&a.focus()});l.handle("open-external",async(e,n)=>{await W.openExternal(n)});l.handle("launch-app",async(e,n)=>{const t=process.platform;t==="darwin"?c(`open -a "${n}"`):t==="win32"?V(n):c(n)});l.handle("build-app-cache",async()=>{if(process.platform!=="win32")return;const e=f.join(u.getPath("userData"),"app-cache.json");try{const n=await K();m.writeFileSync(e,JSON.stringify(n))}catch{}});l.handle("search-apps",async(e,n)=>{if(process.platform!=="win32"||!n)return[];const t=f.join(u.getPath("userData"),"app-cache.json");try{if(!m.existsSync(t))return[];const s=JSON.parse(m.readFileSync(t,"utf8")),i=n.toLowerCase();return s.filter(o=>o.name&&o.name.toLowerCase().includes(i)).slice(0,8)}catch{return[]}});l.handle("get-displays",()=>b.getAllDisplays().map(n=>({id:n.id,label:n.label||`Display ${n.id}`,bounds:n.bounds})));l.handle("set-display",(e,n)=>{if(a){const s=b.getAllDisplays().find(d=>d.id.toString()===n.toString())||b.getPrimaryDisplay(),{x:i,y:o,width:r,height:p}=s.bounds;process.platform,a.setBounds({x:i,y:o,width:r,height:p}),a.show()}});l.handle("update-window-position",(e,n,t)=>{});l.handle("set-auto-launch",(e,n)=>{if(process.platform==="linux"){const t=f.join(u.getPath("home"),".config","autostart"),s=f.join(t,"ripple.desktop");try{if(n){m.existsSync(t)||m.mkdirSync(t,{recursive:!0});const i=`[Desktop Entry]
 Type=Application
 Version=1.0
 Name=Ripple
 Comment=Ripple Desktop Assistant
-Exec="${d.getPath("exe")}"
-Icon=${x()}
+Exec="${u.getPath("exe")}"
+Icon=${O()}
 Terminal=false
-`;m.writeFileSync(i,s)}else m.existsSync(i)&&m.unlinkSync(i)}catch(s){console.error("Failed to set auto-launch on Linux:",s)}}else if(process.platform==="win32")try{d.setLoginItemSettings({openAtLogin:n,path:d.getPath("exe")})}catch(t){console.error("Failed to set login item settings on Windows:",t)}});const x=()=>{const e="png";if(d.isPackaged){const n=$.join(process.resourcesPath,`icon.${e}`),t=$.join(process.resourcesPath,`assets/icons/icon.${e}`);return m.existsSync(n)?n:m.existsSync(t)?t:n}return $.join(__dirname,`../../src/assets/icons/icon.${e}`)},v=()=>{const e=T.getPrimaryDisplay(),{x:n,y:t,width:i,height:s}=e.bounds,o=process.platform==="linux",a=process.platform==="win32",p=process.platform==="darwin",u=i,y=s,g=n,R=t,D=a?"toolbar":"panel";r=new E({width:u,height:y,x:g,y:R,backgroundColor:"#00000000",transparent:!0,alwaysOnTop:!0,resizable:!1,frame:!1,...a?{thickFrame:!1}:{},hasShadow:!1,skipTaskbar:!0,icon:x(),...p?{hiddenInMissionControl:!0}:{},type:D,fullscreen:!1,visibleOnFullScreen:!0,acceptFirstMouse:!0,webPreferences:{preload:$.join(__dirname,"preload.js"),devTools:!0},show:!0}),o?r.setIgnoreMouseEvents(!0):r.setIgnoreMouseEvents(!0,{forward:!0});const F=o?500:0;r.once("ready-to-show",()=>{setTimeout(()=>{r&&(r.show(),o?r.setAlwaysOnTop(!0,"screen-saver"):r.setAlwaysOnTop(!0,"pop-up-menu"),r.focus())},F)}),setTimeout(()=>{r&&!r.isVisible()&&(r.show(),r.focus())},5e3),r.on("closed",()=>{r=null});try{r.setVisibleOnAllWorkspaces(!0,{visibleOnFullScreen:!0})}catch{}if(!d.isPackaged||process.env.NODE_ENV==="development")r.loadURL("http://localhost:5173");else{const M=$.join(__dirname,"../renderer/main_window/index.html");r.loadFile(M)}};d.whenReady().then(()=>{process.platform==="darwin"&&d.dock.hide(),v(),X(),Q(),d.on("activate",()=>{E.getAllWindows().length===0&&v()});try{const e=x(),t=j.createFromPath(e).resize({width:16,height:16});W=new _(t);const i=L.buildFromTemplate([{label:"Show/Hide Ripple",click:()=>{r&&(r.isVisible()?r.hide():r.show())}},{type:"separator"},{label:"Quit",click:()=>{d.quit()}}]);W.setToolTip("Ripple"),W.setContextMenu(i)}catch(e){console.error("Failed to create tray:",e)}});const G=$.join(d.getPath("userData"),"get-media.ps1"),Z=`[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+`;m.writeFileSync(s,i)}else m.existsSync(s)&&m.unlinkSync(s)}catch(i){console.error("Failed to set auto-launch on Linux:",i)}}else if(process.platform==="win32")try{u.setLoginItemSettings({openAtLogin:n,path:u.getPath("exe")})}catch(t){console.error("Failed to set login item settings on Windows:",t)}});const O=()=>{const e="png";if(u.isPackaged){const n=f.join(process.resourcesPath,`icon.${e}`),t=f.join(process.resourcesPath,`assets/icons/icon.${e}`);return m.existsSync(n)?n:m.existsSync(t)?t:n}return f.join(__dirname,`../../src/assets/icons/icon.${e}`)},v=()=>{const e=b.getPrimaryDisplay(),{x:n,y:t,width:s,height:i}=e.bounds,o=process.platform==="linux",r=process.platform==="win32",p=process.platform==="darwin",d=s,$=i,w=n,G=t,F=r?"toolbar":"panel";a=new E({width:d,height:$,x:w,y:G,backgroundColor:"#00000000",transparent:!0,alwaysOnTop:!0,resizable:!1,frame:!1,...r?{thickFrame:!1}:{},hasShadow:!1,skipTaskbar:!0,icon:O(),...p?{hiddenInMissionControl:!0}:{},type:F,fullscreen:!1,visibleOnFullScreen:!0,acceptFirstMouse:!0,webPreferences:{preload:f.join(__dirname,"preload.js"),devTools:!0},show:!0}),o?a.setIgnoreMouseEvents(!0):a.setIgnoreMouseEvents(!0,{forward:!0});const _=o?500:0;a.once("ready-to-show",()=>{setTimeout(()=>{a&&(a.show(),o?a.setAlwaysOnTop(!0,"screen-saver"):a.setAlwaysOnTop(!0,"pop-up-menu"),a.focus())},_)}),setTimeout(()=>{a&&!a.isVisible()&&(a.show(),a.focus())},5e3),a.on("closed",()=>{a=null});try{a.setVisibleOnAllWorkspaces(!0,{visibleOnFullScreen:!0})}catch{}if(!u.isPackaged||process.env.NODE_ENV==="development")a.loadURL("http://localhost:5173");else{const x=f.join(__dirname,"../renderer/main_window/index.html");a.loadFile(x)}};u.whenReady().then(()=>{process.platform==="darwin"&&u.dock.hide(),v(),X(),Q(),u.on("activate",()=>{E.getAllWindows().length===0&&v()});try{const e=O(),t=j.createFromPath(e).resize({width:16,height:16});S=new D(t);const s=L.buildFromTemplate([{label:"Show/Hide Ripple",click:()=>{a&&(a.isVisible()?a.hide():a.show())}},{type:"separator"},{label:"Quit",click:()=>{u.quit()}}]);S.setToolTip("Ripple"),S.setContextMenu(s)}catch(e){console.error("Failed to create tray:",e)}});const R=f.join(u.getPath("userData"),"get-media.ps1"),Z=`[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 Add-Type -AssemblyName System.Drawing
 
@@ -169,7 +169,7 @@ if ($manager) {
     }
 }
 Write-Output "null"
-`;try{m.writeFileSync(G,Z,"utf8")}catch(e){console.error("Failed to write get-media.ps1 script:",e)}l.handle("get-system-media",async()=>new Promise(e=>{const n=process.platform;n==="darwin"?C("osascript",["-e",`
+`;try{m.writeFileSync(R,Z,"utf8")}catch(e){console.error("Failed to write get-media.ps1 script:",e)}l.handle("get-system-media",async()=>new Promise(e=>{const n=process.platform;n==="darwin"?C("osascript",["-e",`
         tell application "System Events"
             set spotifyRunning to (name of every process) contains "Spotify"
             set musicRunning to (name of every process) contains "Music"
@@ -197,13 +197,13 @@ Write-Output "null"
             end tell
         end if
         return "null"
-      `],(i,s)=>{if(i||!s||s.trim()==="null")return e(null);const o=s.trim().split("||");o.length>=6?e({name:o[0],artist:o[1],album:o[2],artwork_url:o[3]||null,state:o[4]==="playing"?"playing":"paused",source:o[5]}):e(null)}):n==="win32"?C("powershell",["-NoProfile","-ExecutionPolicy","Bypass","-File",G],{maxBuffer:10*1024*1024,encoding:"utf8"},(t,i)=>{if(t||!i||i.trim()==="null"||i.trim()==="'null'"){c(`powershell -NoProfile -Command "Get-Process | Where-Object {$_.ProcessName -eq 'Spotify'} | Select-Object MainWindowTitle"`,{encoding:"utf8"},(s,o)=>{var p;if(s||!o)return e(null);const a=(p=o.split(`
-`).find(u=>u.includes("-")))==null?void 0:p.trim();if(a){const u=a.split(" - ");let y="Unknown",g=a;u.length>1&&(y=u[0].trim(),g=u.slice(1).join(" - ").trim()),e({name:g||a,artist:y||"Unknown",state:"playing",source:"Spotify",position:0,duration:0})}else e(null)});return}try{const s=JSON.parse(i.trim());if(!s||!s.Title&&!s.Artist)return e(null);e({name:s.Title||"Unknown Title",artist:s.Artist||"Unknown Artist",album:s.Album||"",artwork_url:s.Artwork||null,state:s.Status==="playing"?"playing":"paused",source:s.Source||"System",position:Number(s.Position)||0,duration:Number(s.Duration)||0})}catch{e(null)}}):n==="linux"?c('playerctl metadata --format "{{title}}||{{artist}}||{{album}}||{{status}}"',(t,i)=>{if(t||!i)return e(null);const s=i.trim().split("||");e({name:s[0],artist:s[1],album:s[2],state:s[3].toLowerCase(),source:"System"})}):e(null)}));l.handle("get-bluetooth-status",async()=>new Promise(e=>{const n=process.platform;if(n==="darwin")c("system_profiler SPBluetoothDataType -json",(t,i)=>{if(t)return e(!1);try{const o=JSON.parse(i).SPBluetoothDataType[0],a=o.device_connected&&o.device_connected.length>0;e(a)}catch{e(!1)}});else if(n==="win32"){const i=Buffer.from(`
+      `],(s,i)=>{if(s||!i||i.trim()==="null")return e(null);const o=i.trim().split("||");o.length>=6?e({name:o[0],artist:o[1],album:o[2],artwork_url:o[3]||null,state:o[4]==="playing"?"playing":"paused",source:o[5]}):e(null)}):n==="win32"?C("powershell",["-NoProfile","-ExecutionPolicy","Bypass","-File",R],{maxBuffer:10*1024*1024,encoding:"utf8"},(t,s)=>{if(t||!s||s.trim()==="null"||s.trim()==="'null'"){c(`powershell -NoProfile -Command "Get-Process | Where-Object {$_.ProcessName -eq 'Spotify'} | Select-Object MainWindowTitle"`,{encoding:"utf8"},(i,o)=>{var p;if(i||!o)return e(null);const r=(p=o.split(`
+`).find(d=>d.includes("-")))==null?void 0:p.trim();if(r){const d=r.split(" - ");let $="Unknown",w=r;d.length>1&&($=d[0].trim(),w=d.slice(1).join(" - ").trim()),e({name:w||r,artist:$||"Unknown",state:"playing",source:"Spotify",position:0,duration:0})}else e(null)});return}try{const i=JSON.parse(s.trim());if(!i||!i.Title&&!i.Artist)return e(null);e({name:i.Title||"Unknown Title",artist:i.Artist||"Unknown Artist",album:i.Album||"",artwork_url:i.Artwork||null,state:i.Status==="playing"?"playing":"paused",source:i.Source||"System",position:Number(i.Position)||0,duration:Number(i.Duration)||0})}catch{e(null)}}):n==="linux"?c('playerctl metadata --format "{{title}}||{{artist}}||{{album}}||{{status}}"',(t,s)=>{if(t||!s)return e(null);const i=s.trim().split("||");e({name:i[0],artist:i[1],album:i[2],state:i[3].toLowerCase(),source:"System"})}):e(null)}));l.handle("get-bluetooth-status",async()=>new Promise(e=>{const n=process.platform;if(n==="darwin")c("system_profiler SPBluetoothDataType -json",(t,s)=>{if(t)return e(!1);try{const o=JSON.parse(s).SPBluetoothDataType[0],r=o.device_connected&&o.device_connected.length>0;e(r)}catch{e(!1)}});else if(n==="win32"){const s=Buffer.from(`
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $devs = @(Get-PnpDevice -Class Bluetooth -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'OK' -and $_.Present -eq $true -and $_.InstanceId -match 'BTHENUM' })
 $names = @($devs | ForEach-Object { $_.FriendlyName })
 @{ connected = ($devs.Count -gt 0); devices = $names } | ConvertTo-Json -Compress
-`,"utf16le").toString("base64");c(`powershell -NoProfile -EncodedCommand ${i}`,(s,o)=>{if(s||!o)return e({connected:!1,devices:[]});try{const a=JSON.parse(o.trim());e({connected:!!a.connected,devices:Array.isArray(a.devices)?a.devices:a.devices?[a.devices]:[]})}catch{e({connected:!1,devices:[]})}})}else n==="linux"?c("bluetoothctl devices Connected",(t,i)=>{if(t)return e(!1);e(i.trim().length>0)}):e(!1)}));l.handle("get-camera-status",async()=>new Promise(e=>{const n=process.platform;n==="darwin"?c('ioreg -l | grep -E "FrontCameraActive|FrontCameraStreaming"',(t,i)=>{e(i?i.includes("= Yes"):!1)}):n==="win32"?c(`powershell -NoProfile -Command "
+`,"utf16le").toString("base64");c(`powershell -NoProfile -EncodedCommand ${s}`,(i,o)=>{if(i||!o)return e({connected:!1,devices:[]});try{const r=JSON.parse(o.trim());e({connected:!!r.connected,devices:Array.isArray(r.devices)?r.devices:r.devices?[r.devices]:[]})}catch{e({connected:!1,devices:[]})}})}else n==="linux"?c("bluetoothctl devices Connected",(t,s)=>{if(t)return e(!1);e(s.trim().length>0)}):e(!1)}));l.handle("get-camera-status",async()=>new Promise(e=>{const n=process.platform;n==="darwin"?c('ioreg -l | grep -E "FrontCameraActive|FrontCameraStreaming"',(t,s)=>{e(s?s.includes("= Yes"):!1)}):n==="win32"?c(`powershell -NoProfile -Command "
         $inUse = $false
         $keys = Get-ChildItem -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\webcam" -Recurse -ErrorAction SilentlyContinue
         foreach ($key in $keys) {
@@ -214,7 +214,7 @@ $names = @($devs | ForEach-Object { $_.FriendlyName })
             }
         }
         $inUse
-      "`,(i,s)=>{if(i)return e(!1);e(s.trim().toLowerCase()==="true")}):n==="linux"?c("fuser /dev/video* 2>/dev/null",(t,i)=>{e(i.trim().length>0)}):e(!1)}));l.handle("get-microphone-status",async()=>new Promise(e=>{const n=process.platform;n==="darwin"?c('ioreg -l | grep -E "IOAudioStreamActive|IOAudioEngine|IOAudioStream" | grep -i "Yes"',(t,i)=>{e(i?i.trim().length>0:!1)}):n==="win32"?c('powershell -NoProfile -Command "@(Get-ChildItem -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone" -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Get-ItemProperty -Path $_.PSPath -Name "LastUsedTimeStop" -ErrorAction SilentlyContinue } | Where-Object { $_ -and $_.LastUsedTimeStop -eq 0 }).Count -gt 0"',(i,s)=>{if(i)return e(!1);e(s.trim().toLowerCase()==="true")}):n==="linux"?c("pactl list source-outputs | grep -q 'Source #'",t=>{e(!t)}):e(!1)}));d.on("window-all-closed",()=>{process.platform==="linux"&&!W&&d.quit()});l.handle("control-system-media",async(e,n)=>{const t=process.platform;if(t==="darwin"){const i=`
+      "`,(s,i)=>{if(s)return e(!1);e(i.trim().toLowerCase()==="true")}):n==="linux"?c("fuser /dev/video* 2>/dev/null",(t,s)=>{e(s.trim().length>0)}):e(!1)}));l.handle("get-microphone-status",async()=>new Promise(e=>{const n=process.platform;n==="darwin"?c('ioreg -l | grep -E "IOAudioStreamActive|IOAudioEngine|IOAudioStream" | grep -i "Yes"',(t,s)=>{e(s?s.trim().length>0:!1)}):n==="win32"?c('powershell -NoProfile -Command "@(Get-ChildItem -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone" -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Get-ItemProperty -Path $_.PSPath -Name "LastUsedTimeStop" -ErrorAction SilentlyContinue } | Where-Object { $_ -and $_.LastUsedTimeStop -eq 0 }).Count -gt 0"',(s,i)=>{if(s)return e(!1);e(i.trim().toLowerCase()==="true")}):n==="linux"?c("pactl list source-outputs | grep -q 'Source #'",t=>{e(!t)}):e(!1)}));u.on("window-all-closed",()=>{process.platform==="linux"&&!S&&u.quit()});l.handle("control-system-media",async(e,n)=>{const t=process.platform;if(t==="darwin"){const s=`
         tell application "System Events"
             set spotifyRunning to (name of every process) contains "Spotify"
             set musicRunning to (name of every process) contains "Music"
@@ -224,12 +224,12 @@ $names = @($devs | ForEach-Object { $_.FriendlyName })
         else if musicRunning then
             tell application "Music" to ${n} track
         end if
-        `;C("osascript",["-e",i])}else if(t==="win32"){let i="0xCD";n==="next"&&(i="0xB0"),n==="previous"&&(i="0xB1"),f(`Executing media control: ${n} (${i})`);const s=`
+        `;C("osascript",["-e",s])}else if(t==="win32"){let s="0xCD";n==="next"&&(s="0xB0"),n==="previous"&&(s="0xB1"),y(`Executing media control: ${n} (${s})`);const i=`
 $type = '[DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);'
 $MediaKey = Add-Type -MemberDefinition $type -Name "WinMediaKey" -Namespace "WinAPI" -PassThru
-$MediaKey::keybd_event(${i}, 0, 0, [UIntPtr]::Zero)
-$MediaKey::keybd_event(${i}, 0, 2, [UIntPtr]::Zero)
-`,o=h(s);c(`powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${o}`,a=>{a&&f("Media control error:",a)})}else if(t==="linux"){let i=n;n==="playpause"&&(i="play-pause"),c(`playerctl ${i}`)}});let w=null;function z(){const e=O.cpus();if(!e||e.length===0)return 0;if(!w||w.length!==e.length)return w=e,0;let n=0,t=0;for(let s=0;s<e.length;s++){const o=e[s],a=w[s];let p=o.times.idle-a.times.idle,u=0;for(const y in o.times)u+=o.times[y]-a.times[y];n+=p,t+=u}if(w=e,t===0)return 0;const i=n/t;return Math.max(0,Math.min(100,Math.round((1-i)*100)))}function Y(){const e=O.totalmem(),n=O.freemem();return e?Math.max(0,Math.min(100,Math.round((e-n)/e*100))):0}l.handle("get-system-metrics",async()=>({cpu:z(),ram:Y()}));l.handle("get-clipboard-text",async()=>{try{return b.readText()}catch{return""}});l.handle("write-clipboard-text",async(e,n)=>{try{return n?b.writeText(n):b.clear(),!0}catch{return!1}});l.handle("clear-clipboard",async()=>{try{return b.clear(),!0}catch{return!1}});l.handle("control-system-volume",async(e,n)=>{if(process.platform==="win32"){let t="0xAF";n==="down"&&(t="0xAE"),n==="mute"&&(t="0xAD");const i=`[Void][System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); $type = '[DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);'; $MediaKey = Add-Type -MemberDefinition $type -Name "WinMediaKey" -Namespace "WinAPI" -PassThru; $MediaKey::keybd_event(${t}, 0, 0, [UIntPtr]::Zero); $MediaKey::keybd_event(${t}, 0, 2, [UIntPtr]::Zero);`;return c(`powershell -NoProfile -Command "${i}"`),!0}return!1});let I=null,N=null;function X(){process.platform==="win32"&&setInterval(()=>{!r||r.isDestroyed()||c('powershell -NoProfile -Command "[Console]::CapsLock; [Console]::NumberLock"',(e,n)=>{var o,a;if(e||!n)return;const t=n.trim().split(/\r?\n/),i=((o=t[0])==null?void 0:o.trim().toLowerCase())==="true",s=((a=t[1])==null?void 0:a.trim().toLowerCase())==="true";I!==null&&i!==I&&r.webContents.send("key-lock-change",{key:"CapsLock",state:i}),N!==null&&s!==N&&r.webContents.send("key-lock-change",{key:"NumLock",state:s}),I=i,N=s})},500)}let S=null;function Q(){process.platform==="win32"&&setInterval(()=>{!r||r.isDestroyed()||c("wmic logicaldisk where drivetype=2 get name,volumename /format:csv",(e,n)=>{var s,o;if(e)return;const t=new Map,i=n.trim().split(/\r?\n/).filter(a=>a.trim()&&!a.startsWith("Node"));for(const a of i){const p=a.trim().split(",");if(p.length>=3){const u=(s=p[1])==null?void 0:s.trim(),y=((o=p[2])==null?void 0:o.trim())||"USB Drive";u&&t.set(u,y)}}if(S!==null){for(const[a,p]of t)S.has(a)||r.webContents.send("usb-change",{action:"connected",drive:a,name:p});for(const[a]of S)t.has(a)||r.webContents.send("usb-change",{action:"disconnected",drive:a,name:"USB Drive"})}S=t})},3e3)}const U=$.join(d.getPath("userData"),"get-notifications.ps1"),ee=`[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$MediaKey::keybd_event(${s}, 0, 0, [UIntPtr]::Zero)
+$MediaKey::keybd_event(${s}, 0, 2, [UIntPtr]::Zero)
+`,o=M(i);c(`powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${o}`,r=>{r&&y("Media control error:",r)})}else if(t==="linux"){let s=n;n==="playpause"&&(s="play-pause"),c(`playerctl ${s}`)}});let h=null;function z(){const e=I.cpus();if(!e||e.length===0)return 0;if(!h||h.length!==e.length)return h=e,0;let n=0,t=0;for(let i=0;i<e.length;i++){const o=e[i],r=h[i];let p=o.times.idle-r.times.idle,d=0;for(const $ in o.times)d+=o.times[$]-r.times[$];n+=p,t+=d}if(h=e,t===0)return 0;const s=n/t;return Math.max(0,Math.min(100,Math.round((1-s)*100)))}function Y(){const e=I.totalmem(),n=I.freemem();return e?Math.max(0,Math.min(100,Math.round((e-n)/e*100))):0}l.handle("get-system-metrics",async()=>({cpu:z(),ram:Y()}));l.handle("get-clipboard-text",async()=>{try{return P.readText()}catch{return""}});l.handle("write-clipboard-text",async(e,n)=>{try{return n?P.writeText(n):P.clear(),!0}catch{return!1}});l.handle("clear-clipboard",async()=>{try{return P.clear(),!0}catch{return!1}});l.handle("control-system-volume",async(e,n)=>{if(process.platform==="win32"){let t="0xAF";n==="down"&&(t="0xAE"),n==="mute"&&(t="0xAD");const s=`[Void][System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); $type = '[DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);'; $MediaKey = Add-Type -MemberDefinition $type -Name "WinMediaKey" -Namespace "WinAPI" -PassThru; $MediaKey::keybd_event(${t}, 0, 0, [UIntPtr]::Zero); $MediaKey::keybd_event(${t}, 0, 2, [UIntPtr]::Zero);`;return c(`powershell -NoProfile -Command "${s}"`),!0}return!1});let N=null,A=null;function X(){process.platform==="win32"&&setInterval(()=>{!a||a.isDestroyed()||c('powershell -NoProfile -Command "[Console]::CapsLock; [Console]::NumberLock"',(e,n)=>{var o,r;if(e||!n)return;const t=n.trim().split(/\r?\n/),s=((o=t[0])==null?void 0:o.trim().toLowerCase())==="true",i=((r=t[1])==null?void 0:r.trim().toLowerCase())==="true";N!==null&&s!==N&&a.webContents.send("key-lock-change",{key:"CapsLock",state:s}),A!==null&&i!==A&&a.webContents.send("key-lock-change",{key:"NumLock",state:i}),N=s,A=i})},500)}let g=null;function Q(){process.platform==="win32"&&setInterval(()=>{!a||a.isDestroyed()||c("wmic logicaldisk where drivetype=2 get name,volumename /format:csv",(e,n)=>{var i,o;if(e)return;const t=new Map,s=n.trim().split(/\r?\n/).filter(r=>r.trim()&&!r.startsWith("Node"));for(const r of s){const p=r.trim().split(",");if(p.length>=3){const d=(i=p[1])==null?void 0:i.trim(),$=((o=p[2])==null?void 0:o.trim())||"USB Drive";d&&t.set(d,$)}}if(g!==null){for(const[r,p]of t)g.has(r)||a.webContents.send("usb-change",{action:"connected",drive:r,name:p});for(const[r]of g)t.has(r)||a.webContents.send("usb-change",{action:"disconnected",drive:r,name:"USB Drive"})}g=t})},3e3)}const U=f.join(u.getPath("userData"),"get-notifications.ps1"),ee=`[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 
 [void][Windows.UI.Notifications.Management.UserNotificationListener, Windows.UI.Notifications, ContentType = WindowsRuntime]
@@ -306,7 +306,7 @@ try {
 } catch {
     Write-Output "[]"
 }
-`;try{m.writeFileSync(U,ee,"utf8")}catch(e){f("Failed to write get-notifications.ps1:",e)}l.handle("get-notifications",async()=>process.platform!=="win32"?[]:new Promise(e=>{C("powershell",["-NoProfile","-ExecutionPolicy","Bypass","-File",U],{maxBuffer:5*1024*1024,encoding:"utf8",timeout:1e4},(n,t)=>{if(n||!t)return e([]);try{const i=JSON.parse(t.trim());e(Array.isArray(i)?i:i?[i]:[])}catch{e([])}})}));l.handle("dismiss-notification",async(e,n)=>process.platform!=="win32"?!1:new Promise(t=>{const i=`
+`;try{m.writeFileSync(U,ee,"utf8")}catch(e){y("Failed to write get-notifications.ps1:",e)}l.handle("get-notifications",async()=>process.platform!=="win32"?[]:new Promise(e=>{C("powershell",["-NoProfile","-ExecutionPolicy","Bypass","-File",U],{maxBuffer:5*1024*1024,encoding:"utf8",timeout:1e4},(n,t)=>{if(n||!t)return e([]);try{const s=JSON.parse(t.trim());e(Array.isArray(s)?s:s?[s]:[])}catch{e([])}})}));l.handle("dismiss-notification",async(e,n)=>process.platform!=="win32"?!1:new Promise(t=>{const s=`
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
     $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetGenericArguments().Count -eq 1 -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name.StartsWith('IAsyncOperation')
@@ -320,227 +320,9 @@ try {
     $listener.RemoveNotification(${n})
     Write-Output "true"
 } catch { Write-Output "false" }
-`,s=h(i);c(`powershell -NoProfile -EncodedCommand ${s}`,(o,a)=>{t((a==null?void 0:a.trim())==="true")})}));l.handle("focus-notification-app",async(e,n)=>process.platform!=="win32"||!n?!1:new Promise(t=>{const i=n.split("!")[0].split("_")[0].replace(/\./g,""),s=`
+`,i=M(s);c(`powershell -NoProfile -EncodedCommand ${i}`,(o,r)=>{t((r==null?void 0:r.trim())==="true")})}));l.handle("focus-notification-app",async(e,n)=>process.platform!=="win32"||!n?!1:new Promise(t=>{const s=n.split("!")[0].split("_")[0].replace(/\./g,""),i=`
 $type = '[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);'
 $fw = Add-Type -MemberDefinition $type -Name "FW" -Namespace "WinAPI" -PassThru
-$procs = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and ($_.ProcessName -match '${i}' -or $_.MainWindowTitle -match '${i}') } | Select-Object -First 1
+$procs = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and ($_.ProcessName -match '${s}' -or $_.MainWindowTitle -match '${s}') } | Select-Object -First 1
 if ($procs) { [void]$fw::SetForegroundWindow($procs.MainWindowHandle); Write-Output "true" } else { Write-Output "false" }
-`,o=h(s);c(`powershell -NoProfile -EncodedCommand ${o}`,(a,p)=>{t((p==null?void 0:p.trim())==="true")})}));const te=$.join(d.getPath("userData"),"get-whatsapp-call.ps1"),ne=`[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-Add-Type -AssemblyName System.Runtime.WindowsRuntime
-[void][Windows.UI.Notifications.Management.UserNotificationListener, Windows.UI.Notifications, ContentType = WindowsRuntime]
-[void][Windows.UI.Notifications.UserNotification, Windows.UI.Notifications, ContentType = WindowsRuntime]
-
-$asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
-    $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetGenericArguments().Count -eq 1 -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name.StartsWith('IAsyncOperation')
-}[0]
-function Await-Op($asyncOp, $type) {
-    if (-not $asyncOp) { return $null }
-    try { $task = $asTaskGeneric.MakeGenericMethod($type).Invoke($null, @($asyncOp)); [void]$task.Wait(); return $task.Result } catch { return $null }
-}// Fast dual-check: Windows Notification Listener + WhatsApp Window Title
-try {
-    # 1. Check active WhatsApp call window title first (instant, 0ms latency)
-    $type = '[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd); [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int count);'
-    $win = Add-Type -MemberDefinition $type -Name "WinWhatsApp" -Namespace "WinAPI" -PassThru
-    $procs = Get-Process -Name "WhatsApp","WhatsApp.Root" -ErrorAction SilentlyContinue
-    foreach ($p in $procs) {
-        if ($p.MainWindowHandle -ne 0) {
-            $sb = New-Object System.Text.StringBuilder 256
-            [void]$win::GetWindowText($p.MainWindowHandle, $sb, 256)
-            $title = $sb.ToString().Trim()
-            if ($title -and ($title -like '*call*' -or $title -like '*ringing*' -or $title -like '*incoming*')) {
-                $isVideo = $title -like '*video*'
-                $callerMatch = [regex]::Match($title, '(?:from|with)s+(.+?)(?:s*[-–—]|$)', 'IgnoreCase')
-                $caller = if ($callerMatch.Success) { $callerMatch.Groups[1].Value.Trim() } else { $title.Replace("WhatsApp", "").Trim() }
-                if (-not $caller) { $caller = "WhatsApp Contact" }
-                @{ caller = $caller; callType = (if ($isVideo) { "Video Call" } else { "Voice Call" }); active = $true } | ConvertTo-Json -Compress
-                exit
-            }
-        }
-    }
-
-    # 2. Fallback to UserNotificationListener
-    $listener = [Windows.UI.Notifications.Management.UserNotificationListener]::Current
-    $accessType = [Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus, Windows.UI.Notifications, ContentType = WindowsRuntime]
-    $access = Await-Op ($listener.RequestAccessAsync()) $accessType
-    if ($access -eq [Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus]::Allowed) {
-        $kinds = [Windows.UI.Notifications.NotificationKinds]::Toast
-        $userNotifType = [Windows.UI.Notifications.UserNotification, Windows.UI.Notifications, ContentType = WindowsRuntime]
-        $readOnlyListType = [System.Collections.Generic.IReadOnlyList\`\`1].MakeGenericType($userNotifType)
-        $task = $asTaskGeneric.MakeGenericMethod($readOnlyListType).Invoke($null, @($listener.GetNotificationsAsync($kinds)))
-        [void]$task.Wait(3000)
-        $notifs = $task.Result
-        foreach ($n in $notifs) {
-            try {
-                $appId = ""
-                try { $appId = $n.AppInfo.AppUserModelId } catch {}
-                $appName = ""
-                try { $appName = $n.AppInfo.DisplayInfo.DisplayName } catch {}
-                if ($appId -notlike '*WhatsApp*' -and $appName -notlike '*WhatsApp*') { continue }
-                $toast = $n.Notification.Visual.GetBinding([Windows.UI.Notifications.KnownNotificationBindings]::ToastGeneric)
-                if (-not $toast) { continue }
-                $texts = $toast.GetTextElements()
-                $title = ""; $body = ""; $i = 0
-                foreach ($t in $texts) { if ($i -eq 0) { $title = $t.Text } elseif ($i -eq 1) { $body = $t.Text }; $i++ }
-                $combined = "$title $body"
-                $callPatterns = @('incoming', 'ringing', 'calling', 'voice call', 'video call', 'audio call', 'call from')
-                $isCall = $false
-                foreach ($p in $callPatterns) { if ($combined -like "*$p*") { $isCall = $true; break } }
-                if ($isCall) {
-                    $isVideo = $combined -like '*video*'
-                    $callType = if ($isVideo) { "Video Call" } else { "Voice Call" }
-                    @{ caller = $title; callType = $callType; active = $true } | ConvertTo-Json -Compress
-                    exit
-                }
-            } catch { continue }
-        }
-    }
-    Write-Output "null"
-} catch { Write-Output "null" }
-`;try{m.writeFileSync(te,ne,"utf8")}catch(e){f("Failed to write get-whatsapp-call.ps1:",e)}l.handle("get-whatsapp-call",async()=>process.platform!=="win32"?null:new Promise(e=>{const t=h(`
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-Add-Type -AssemblyName System.Runtime.WindowsRuntime
-
-# 1. UserNotificationListener check for WhatsApp call toast
-try {
-    $asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
-        $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetGenericArguments().Count -eq 1 -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name.StartsWith('IAsyncOperation')
-    }[0]
-    function Await-Op($asyncOp, $type) {
-        if (-not $asyncOp) { return $null }
-        try { $task = $asTaskGeneric.MakeGenericMethod($type).Invoke($null, @($asyncOp)); [void]$task.Wait(); return $task.Result } catch { return $null }
-    }
-    $listener = [Windows.UI.Notifications.Management.UserNotificationListener]::Current
-    $accessType = [Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus, Windows.UI.Notifications, ContentType = WindowsRuntime]
-    $access = Await-Op ($listener.RequestAccessAsync()) $accessType
-    if ($access -eq [Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus]::Allowed) {
-        $kinds = [Windows.UI.Notifications.NotificationKinds]::Toast
-        $userNotifType = [Windows.UI.Notifications.UserNotification, Windows.UI.Notifications, ContentType = WindowsRuntime]
-        $readOnlyListType = [System.Collections.Generic.IReadOnlyList\`\`1].MakeGenericType($userNotifType)
-        $task = $asTaskGeneric.MakeGenericMethod($readOnlyListType).Invoke($null, @($listener.GetNotificationsAsync($kinds)))
-        [void]$task.Wait(1500)
-        $notifs = $task.Result
-        foreach ($n in $notifs) {
-            try {
-                $appId = ""; try { $appId = $n.AppInfo.AppUserModelId } catch {}
-                $appName = ""; try { $appName = $n.AppInfo.DisplayInfo.DisplayName } catch {}
-                if ($appId -like '*WhatsApp*' -or $appName -like '*WhatsApp*') {
-                    $toast = $n.Notification.Visual.GetBinding([Windows.UI.Notifications.KnownNotificationBindings]::ToastGeneric)
-                    if ($toast) {
-                        $texts = $toast.GetTextElements()
-                        $title = ""; $body = ""; $i = 0
-                        foreach ($t in $texts) { if ($i -eq 0) { $title = $t.Text } elseif ($i -eq 1) { $body = $t.Text }; $i++ }
-                        $combined = "$title $body".ToLower()
-                        if ($combined -like '*call*' -or $combined -like '*ring*' -or $combined -like '*voice*' -or $combined -like '*video*' -or $combined -like '*incoming*' -or [string]::IsNullOrWhiteSpace($body)) {
-                            $isVideo = $combined -like '*video*'
-                            $caller = if ($title) { $title } else { "WhatsApp Contact" }
-                            @{ caller = $caller; callType = (if ($isVideo) { "Video Call" } else { "Voice Call" }); active = $true } | ConvertTo-Json -Compress
-                            exit
-                        }
-                    }
-                }
-            } catch {}
-        }
-    }
-} catch {}
-
-# 2. UI Automation check for active WhatsApp call windows
-try {
-    Add-Type -AssemblyName UIAutomationClient -ErrorAction SilentlyContinue
-    Add-Type -AssemblyName UIAutomationTypes -ErrorAction SilentlyContinue
-    $root = [System.Windows.Automation.AutomationElement]::RootElement
-    $condWA = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, "WhatsApp")
-    $waWins = $root.FindAll([System.Windows.Automation.TreeScope]::Children, $condWA)
-    foreach ($w in $waWins) {
-        $condDesc = [System.Windows.Automation.Condition]::TrueCondition
-        $children = $w.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condDesc)
-        $isCall = $false; $caller = ""; $type = "Voice Call"
-        foreach ($c in $children) {
-            $n = $c.Current.Name
-            if ($n -eq "Voice call") { $isCall = $true; $type = "Voice Call" }
-            if ($n -eq "Video call") { $isCall = $true; $type = "Video Call" }
-            if ($n -eq "Accept" -or $n -eq "Decline") { $isCall = $true }
-        }
-        if ($isCall) {
-            foreach ($c in $children) {
-                $n = $c.Current.Name
-                $t = $c.Current.ControlType.ProgrammaticName
-                if ($t -match "Text" -and $n -ne "Voice call" -and $n -ne "Video call" -and $n -ne "WhatsApp" -and -not [string]::IsNullOrWhiteSpace($n)) {
-                    $caller = $n
-                    break
-                }
-            }
-            if (-not $caller) { $caller = "WhatsApp Contact" }
-            @{ caller = $caller; callType = $type; active = $true } | ConvertTo-Json -Compress
-            exit
-        }
-    }
-} catch {}
-
-Write-Output "null"
-`);c(`powershell -NoProfile -EncodedCommand ${t}`,{maxBuffer:2*1024*1024,timeout:5e3},(i,s)=>{if(i||!s||s.trim()==="null")return e(null);try{e(JSON.parse(s.trim()))}catch{e(null)}})}));l.handle("answer-whatsapp-call",async()=>process.platform!=="win32"?!1:new Promise(e=>{const t=h(`
-$code = @"
-using System;
-using System.Runtime.InteropServices;
-public class WAFocus {
-    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
-    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
-    public static bool Focus() {
-        bool ok = false;
-        EnumWindows((hwnd, lp) => {
-            if (IsWindowVisible(hwnd)) {
-                uint pid = 0; GetWindowThreadProcessId(hwnd, out pid);
-                try {
-                    var p = System.Diagnostics.Process.GetProcessById((int)pid);
-                    if (p != null && (p.ProcessName.Equals("WhatsApp", StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("WhatsApp.Root", StringComparison.OrdinalIgnoreCase))) {
-                        SetForegroundWindow(hwnd);
-                        ok = true;
-                        return false;
-                    }
-                } catch {}
-            }
-            return true;
-        }, IntPtr.Zero);
-        return ok;
-    }
-}
-"@
-Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
-$res = [WAFocus]::Focus()
-if ($res) { Write-Output "true" } else { Write-Output "false" }
-`);c(`powershell -NoProfile -EncodedCommand ${t}`,(i,s)=>{e((s==null?void 0:s.trim())==="true")})}));l.handle("decline-whatsapp-call",async()=>process.platform!=="win32"?!1:new Promise(e=>{const t=h(`
-$code = @"
-using System;
-using System.Runtime.InteropServices;
-public class WAFocus2 {
-    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
-    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
-    public static bool Focus() {
-        bool ok = false;
-        EnumWindows((hwnd, lp) => {
-            if (IsWindowVisible(hwnd)) {
-                uint pid = 0; GetWindowThreadProcessId(hwnd, out pid);
-                try {
-                    var p = System.Diagnostics.Process.GetProcessById((int)pid);
-                    if (p != null && (p.ProcessName.Equals("WhatsApp", StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("WhatsApp.Root", StringComparison.OrdinalIgnoreCase))) {
-                        SetForegroundWindow(hwnd);
-                        ok = true;
-                        return false;
-                    }
-                } catch {}
-            }
-            return true;
-        }, IntPtr.Zero);
-        return ok;
-    }
-}
-"@
-Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
-$res = [WAFocus2]::Focus()
-if ($res) { Write-Output "true" } else { Write-Output "false" }
-`);c(`powershell -NoProfile -EncodedCommand ${t}`,(i,s)=>{e((s==null?void 0:s.trim())==="true")})}));
+`,o=M(i);c(`powershell -NoProfile -EncodedCommand ${o}`,(r,p)=>{t((p==null?void 0:p.trim())==="true")})}));
