@@ -1174,9 +1174,6 @@ export default function Island() {
   };
 
   const isPlaying = spotifyTrack?.state === 'playing';
-  const nowPlayingText = spotifyTrack?.name ? `${spotifyTrack.name}${spotifyTrack.artist ? ` • ${spotifyTrack.artist}` : ''}` : '';
-  const textWidth = measureTextWidth(nowPlayingText) || (nowPlayingText.length * 7);
-  const hoverExtraWidth = 36;
   const nowPlayingWidth = isHovered ? 135 : 110;
   const width = notificationAlert
     ? 300
@@ -1612,9 +1609,10 @@ export default function Island() {
 
   useEffect(() => {
     getClipboard();
-    const interval = setInterval(getClipboard, 1500);
+    const pollInterval = currentTab === 1 ? 2000 : 3500;
+    const interval = setInterval(getClipboard, pollInterval);
     return () => clearInterval(interval);
-  }, []);
+  }, [currentTab]);
 
   // Get Bluetooth
   useEffect(() => {
@@ -1634,7 +1632,7 @@ export default function Island() {
     };
 
     fetchBluetooth();
-    const interval = setInterval(fetchBluetooth, 5000); // Check every 5 seconds
+    const interval = setInterval(fetchBluetooth, 8000); // Check every 8 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -1673,7 +1671,7 @@ export default function Island() {
     };
 
     fetchCamera();
-    const interval = setInterval(fetchCamera, 3000); // Check every 3 seconds
+    const interval = setInterval(fetchCamera, 4500); // Check every 4.5 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -1691,12 +1689,13 @@ export default function Island() {
     };
 
     fetchMicrophone();
-    const interval = setInterval(fetchMicrophone, 3000); // Check every 3 seconds
+    const interval = setInterval(fetchMicrophone, 4500); // Check every 4.5 seconds
     return () => clearInterval(interval);
   }, []);
 
-  // Get System Metrics (CPU, RAM)
+  // Get System Metrics (CPU, RAM) - Only active when System Metrics tab (Tab 8) is visible
   useEffect(() => {
+    if (mode !== 'large' || currentTab !== 8) return;
     const fetchMetrics = async () => {
       if (window.electronAPI?.getSystemMetrics) {
         try {
@@ -1711,7 +1710,7 @@ export default function Island() {
     fetchMetrics();
     const interval = setInterval(fetchMetrics, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [mode, currentTab]);
 
   // Key Lock Alert Listener (push events from main process)
   useEffect(() => {
@@ -2110,7 +2109,7 @@ export default function Island() {
   };
 
   const isFree = positionMode === "free";
-  const getSideStyles = () => {
+  const sideStyles = useMemo(() => {
     switch (positionMode) {
       case 'top-left': return { left: '15px', top: '6px', x: '0%' };
       case 'top-right': return { left: 'calc(100% - 15px)', top: '6px', x: '-100%' };
@@ -2120,8 +2119,7 @@ export default function Island() {
       case 'bottom-center': return { left: '49.8%', top: 'auto', bottom: '45px', x: '-50%' };
       default: return { left: `${islandX}%`, top: `${islandY}px`, x: '-50%' };
     }
-  };
-  const sideStyles = getSideStyles();
+  }, [positionMode, islandX, islandY]);
 
   return (
     <motion.div
