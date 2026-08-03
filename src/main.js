@@ -491,7 +491,7 @@ const createWindow = () => {
     acceptFirstMouse: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-      devTools: true,
+      devTools: !app.isPackaged,
     },
     show: true,
   });
@@ -535,14 +535,31 @@ const createWindow = () => {
     mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   } catch (_) {}
 
-  if (!app.isPackaged || process.env.NODE_ENV === "development") {
+  if (typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== "undefined" && MAIN_WINDOW_VITE_DEV_SERVER_URL && !app.isPackaged) {
+    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  } else if (!app.isPackaged && process.env.NODE_ENV === "development") {
     mainWindow.loadURL("http://localhost:5173");
   } else {
-    const rendererPath = path.join(
-      __dirname,
-      "../renderer/main_window/index.html",
-    );
-    mainWindow.loadFile(rendererPath);
+    const candidatePaths = [
+      path.join(__dirname, "../renderer/main_window/index.html"),
+      path.join(app.getAppPath(), ".vite/renderer/main_window/index.html"),
+      path.join(app.getAppPath(), "dist/index.html"),
+      path.join(__dirname, "index.html"),
+      path.join(app.getAppPath(), "index.html")
+    ];
+    let loaded = false;
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        logToFile(`Loading renderer from: ${p}`);
+        mainWindow.loadFile(p);
+        loaded = true;
+        break;
+      }
+    }
+    if (!loaded) {
+      logToFile("No packaged renderer HTML found, falling back to localhost:5173");
+      mainWindow.loadURL("http://localhost:5173");
+    }
   }
 };
 
@@ -733,8 +750,12 @@ try {
   console.error("Failed to write get-media.ps1 script:", e);
 }
 
+let mediaFetchInFlight = false;
 ipcMain.handle("get-system-media", async () => {
+  if (mediaFetchInFlight) return null;
+  mediaFetchInFlight = true;
   return new Promise((resolve) => {
+    const done = (val) => { mediaFetchInFlight = false; resolve(val); };
     const platform = process.platform;
     if (platform === "darwin") {
       const script = `
@@ -768,11 +789,11 @@ ipcMain.handle("get-system-media", async () => {
       `;
       execFile("osascript", ["-e", script], (error, stdout) => {
         if (error || !stdout || stdout.trim() === "null") {
-          return resolve(null);
+          return done(null);
         }
         const parts = stdout.trim().split("||");
         if (parts.length >= 6) {
-          resolve({
+          done({
             name: parts[0],
             artist: parts[1],
             album: parts[2],
@@ -781,7 +802,7 @@ ipcMain.handle("get-system-media", async () => {
             source: parts[5],
           });
         } else {
-          resolve(null);
+          done(null);
         }
       });
     } else if (platform === "win32") {
@@ -800,7 +821,7 @@ ipcMain.handle("get-system-media", async () => {
               `powershell -NoProfile -Command "Get-Process | Where-Object {$_.ProcessName -eq 'Spotify'} | Select-Object MainWindowTitle"`,
               { encoding: "utf8" },
               (err, out) => {
-                if (err || !out) return resolve(null);
+                if (err || !out) return done(null);
                 const title = out
                   .split("\n")
                   .find((l) => l.includes("-"))
@@ -813,7 +834,7 @@ ipcMain.handle("get-system-media", async () => {
                     artist = songParts[0].trim();
                     song = songParts.slice(1).join(" - ").trim();
                   }
-                  resolve({
+                  done({
                     name: song || title,
                     artist: artist || "Unknown",
                     state: "playing",
@@ -822,7 +843,7 @@ ipcMain.handle("get-system-media", async () => {
                     duration: 0
                   });
                 } else {
-                  resolve(null);
+                  done(null);
                 }
               },
             );
@@ -832,9 +853,9 @@ ipcMain.handle("get-system-media", async () => {
           try {
             const data = JSON.parse(stdout.trim());
             if (!data || (!data.Title && !data.Artist)) {
-              return resolve(null);
+              return done(null);
             }
-            resolve({
+            done({
               name: data.Title || "Unknown Title",
               artist: data.Artist || "Unknown Artist",
               album: data.Album || "",
@@ -845,7 +866,7 @@ ipcMain.handle("get-system-media", async () => {
               duration: Number(data.Duration) || 0
             });
           } catch (e) {
-            resolve(null);
+            done(null);
           }
         },
       );
@@ -853,9 +874,9 @@ ipcMain.handle("get-system-media", async () => {
       exec(
         'playerctl metadata --format "{{title}}||{{artist}}||{{album}}||{{status}}"',
         (err, stdout) => {
-          if (err || !stdout) return resolve(null);
+          if (err || !stdout) return done(null);
           const parts = stdout.trim().split("||");
-          resolve({
+          done({
             name: parts[0],
             artist: parts[1],
             album: parts[2],
@@ -865,7 +886,7 @@ ipcMain.handle("get-system-media", async () => {
         },
       );
     } else {
-      resolve(null);
+      done(null);
     }
   });
 });
@@ -1097,23 +1118,31 @@ let lastNumLock = null;
 
 function startKeyLockPolling() {
   if (process.platform !== "win32") return;
+  let keyLockInFlight = false;
   setInterval(() => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (keyLockInFlight) return; // skip if previous call hasn't returned yet
+    keyLockInFlight = true;
     exec('powershell -NoProfile -Command "[Console]::CapsLock; [Console]::NumberLock"', (err, stdout) => {
+      keyLockInFlight = false;
       if (err || !stdout) return;
       const lines = stdout.trim().split(/\r?\n/);
       const capsLock = lines[0]?.trim().toLowerCase() === "true";
       const numLock = lines[1]?.trim().toLowerCase() === "true";
       if (lastCapsLock !== null && capsLock !== lastCapsLock) {
-        mainWindow.webContents.send("key-lock-change", { key: "CapsLock", state: capsLock });
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("key-lock-change", { key: "CapsLock", state: capsLock });
+        }
       }
       if (lastNumLock !== null && numLock !== lastNumLock) {
-        mainWindow.webContents.send("key-lock-change", { key: "NumLock", state: numLock });
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("key-lock-change", { key: "NumLock", state: numLock });
+        }
       }
       lastCapsLock = capsLock;
       lastNumLock = numLock;
     });
-  }, 500);
+  }, 2000); // 2s is plenty for key-lock detection; was 500ms which spawned 2 powershell/s
 }
 
 // --- Feature: USB Drive Detection ---
@@ -1121,9 +1150,13 @@ let knownUSBDrives = null;
 
 function startUSBPolling() {
   if (process.platform !== "win32") return;
+  let usbInFlight = false;
   setInterval(() => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (usbInFlight) return; // skip if wmic from previous tick hasn't finished yet
+    usbInFlight = true;
     exec('wmic logicaldisk where drivetype=2 get name,volumename /format:csv', (err, stdout) => {
+      usbInFlight = false;
       if (err) return;
       const currentDrives = new Map();
       const lines = stdout.trim().split(/\r?\n/).filter(l => l.trim() && !l.startsWith("Node"));
@@ -1135,7 +1168,7 @@ function startUSBPolling() {
           if (drive) currentDrives.set(drive, name);
         }
       }
-      if (knownUSBDrives !== null) {
+      if (knownUSBDrives !== null && mainWindow && !mainWindow.isDestroyed()) {
         for (const [drive, name] of currentDrives) {
           if (!knownUSBDrives.has(drive)) {
             mainWindow.webContents.send("usb-change", { action: "connected", drive, name });
@@ -1149,7 +1182,7 @@ function startUSBPolling() {
       }
       knownUSBDrives = currentDrives;
     });
-  }, 3000);
+  }, 5000); // 5s is fine for USB detection; WMIC is slow — was 3000ms with no concurrency guard
 }
 
 // --- Feature: Notification Center (Windows) ---
@@ -1239,14 +1272,18 @@ try {
   logToFile("Failed to write get-notifications.ps1:", e);
 }
 
+let notificationsFetchInFlight = false;
 ipcMain.handle("get-notifications", async () => {
   if (process.platform !== "win32") return [];
+  if (notificationsFetchInFlight) return []; // skip if previous powershell script is still running
+  notificationsFetchInFlight = true;
   return new Promise((resolve) => {
     execFile(
       "powershell",
       ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", psNotificationsScriptPath],
       { maxBuffer: 5 * 1024 * 1024, encoding: "utf8", timeout: 10000 },
       (error, stdout) => {
+        notificationsFetchInFlight = false;
         if (error || !stdout) return resolve([]);
         try {
           const data = JSON.parse(stdout.trim());

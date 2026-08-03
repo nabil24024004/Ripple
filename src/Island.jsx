@@ -1608,16 +1608,26 @@ export default function Island() {
   }
 
   useEffect(() => {
-    getClipboard();
+    let inflightClipboard = false;
+    const pollGetClipboard = async () => {
+      if (inflightClipboard) return;
+      inflightClipboard = true;
+      await getClipboard();
+      inflightClipboard = false;
+    };
+    pollGetClipboard();
     const pollInterval = currentTab === 1 ? 2000 : 3500;
-    const interval = setInterval(getClipboard, pollInterval);
+    const interval = setInterval(pollGetClipboard, pollInterval);
     return () => clearInterval(interval);
   }, [currentTab]);
 
   // Get Bluetooth
   useEffect(() => {
+    let inflightBluetooth = false;
     const fetchBluetooth = async () => {
+      if (inflightBluetooth) return;
       if (window.electronAPI?.getBluetoothStatus) {
+        inflightBluetooth = true;
         try {
           const result = await window.electronAPI.getBluetoothStatus();
           if (typeof result === 'boolean') {
@@ -1627,6 +1637,8 @@ export default function Island() {
           }
         } catch (e) {
           console.error(e);
+        } finally {
+          inflightBluetooth = false;
         }
       }
     };
@@ -1659,13 +1671,18 @@ export default function Island() {
 
   // Get Camera Status
   useEffect(() => {
+    let inflightCamera = false;
     const fetchCamera = async () => {
+      if (inflightCamera) return;
       if (window.electronAPI?.getCameraStatus) {
+        inflightCamera = true;
         try {
           const inUse = await window.electronAPI.getCameraStatus();
           setCameraInUse(inUse);
         } catch (e) {
           console.error(e);
+        } finally {
+          inflightCamera = false;
         }
       }
     };
@@ -1677,13 +1694,18 @@ export default function Island() {
 
   // Get Microphone Status
   useEffect(() => {
+    let inflightMicrophone = false;
     const fetchMicrophone = async () => {
+      if (inflightMicrophone) return;
       if (window.electronAPI?.getMicrophoneStatus) {
+        inflightMicrophone = true;
         try {
           const inUse = await window.electronAPI.getMicrophoneStatus();
           setMicrophoneInUse(inUse);
         } catch (e) {
           console.error(e);
+        } finally {
+          inflightMicrophone = false;
         }
       }
     };
@@ -1892,8 +1914,13 @@ export default function Island() {
     };
 
     // Safety mouse position tracker: if mouse leaves island rect, release mouse lock once
+    // Throttled to max once per 100ms to avoid hammering getBoundingClientRect + IPC
     let isIgnoringMouse = false;
+    let lastMoveTime = 0;
     const handleMouseMove = (e) => {
+      const now = Date.now();
+      if (now - lastMoveTime < 100) return;
+      lastMoveTime = now;
       const islandElem = document.getElementById("Island");
       if (!islandElem) return;
       const rect = islandElem.getBoundingClientRect();
@@ -1951,19 +1978,28 @@ export default function Island() {
 
   // Now Playing
   useEffect(() => {
+    let inflightMedia = false;
     const fetchMedia = async () => {
+      if (inflightMedia) return;
       if (window.electronAPI?.getSystemMedia) {
+        inflightMedia = true;
         try {
           const track = await window.electronAPI.getSystemMedia();
+          if (track && track.artwork_url && track.artwork_url.length > 512 * 1024) {
+            // Cap oversized base64 artwork to prevent large state allocations
+            track.artwork_url = null;
+          }
           setSpotifyTrack(track);
         } catch (e) {
           console.error(e);
+        } finally {
+          inflightMedia = false;
         }
       }
     };
 
     fetchMedia();
-    const interval = setInterval(fetchMedia, 2000);
+    const interval = setInterval(fetchMedia, 3000); // 3s is enough; was 2s with no inflight guard
     return () => clearInterval(interval);
   }, []);
 
