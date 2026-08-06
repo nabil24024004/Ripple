@@ -8,7 +8,7 @@ Ripple is a cross-platform desktop application that recreates Apple's Dynamic Is
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2)](https://discord.gg/a2xzVkxFVg)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-3.3.0-blue)](package.json)
+[![Version](https://img.shields.io/badge/Version-5.0.0-blue)](package.json)
 
 https://github.com/user-attachments/assets/7408347c-52d8-474c-82e7-0946082be474
 
@@ -103,7 +103,7 @@ Download the latest release for your platform:
 
 ```bash
 # Clone the repository
-git clone https://github.com/TopMyster/Ripple.git
+git clone https://github.com/Abrar Nabil/Ripple.git
 cd Ripple
 
 # Install dependencies

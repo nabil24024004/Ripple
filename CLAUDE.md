@@ -9,9 +9,9 @@ Welcome to the **Ripple** project codebase! This file serves as the definitive r
 **Ripple** is a cross-platform desktop application that recreates Apple's Dynamic Island experience on **Windows**, **macOS**, and **Linux**. It acts as a non-intrusive notification hub, system monitor, media controller, and customizable widget panel that expands on hover or click while floating seamlessly above all desktop windows.
 
 - **Product Name**: Ripple
-- **Current Version**: 3.3.0
+- **Current Version**: 5.0.0
 - **License**: MIT
-- **Author**: TopMyster
+- **Author**: Abrar Nabil
 
 ---
 

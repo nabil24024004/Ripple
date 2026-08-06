@@ -90,9 +90,9 @@ module.exports = {
       name: '@electron-forge/maker-squirrel',
       config: {
         name: 'ripple',
-        authors: 'TopMyster',
+        authors: 'Abrar Nabil',
         description: 'A Dynamic Island for All',
-        iconUrl: 'https://raw.githubusercontent.com/TopMyster/Ripple/main/src/assets/icons/icon.ico',
+        iconUrl: 'https://raw.githubusercontent.com/Abrar Nabil/Ripple/main/src/assets/icons/icon.ico',
         setupIcon: path.join(__dirname, 'src/assets/icons/icon.ico')
       }
     },
@@ -100,7 +100,7 @@ module.exports = {
       name: '@electron-forge/maker-wix',
       config: {
         language: 1033,
-        manufacturer: 'TopMyster',
+        manufacturer: 'Abrar Nabil',
         description: 'A Dynamic Island for All',
         name: 'Ripple',
         icon: path.join(__dirname, 'src/assets/icons/icon.ico'),

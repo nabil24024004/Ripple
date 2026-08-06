@@ -24,14 +24,14 @@ function playTimerAlarmSound() {
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
-      
+
       gain.gain.setValueAtTime(0, ctx.currentTime + startTime);
       gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + startTime + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startTime + duration);
-      
+
       osc.connect(gain);
       gain.connect(ctx.destination);
-      
+
       osc.start(ctx.currentTime + startTime);
       osc.stop(ctx.currentTime + startTime + duration);
     };
@@ -86,7 +86,7 @@ const TimerCircleProgress = ({ progress = 1, size = 18, strokeWidth = 2.5 }) => 
 // 3D Layered Animated Weather Icon (Dedicated Day & Night Icon Sets - Optimized with React.memo & GPU hardware acceleration)
 const Animated3DWeatherIcon = React.memo(({ status = "Partly Sunny", size = 64, isNight: isNightProp = null }) => {
   const statusLower = (status || "Partly Sunny").toLowerCase();
-  
+
   // Auto-detect Night if local time is >= 18:00 or < 06:00, or status includes night/moon, or isNightProp is true
   const currentHour = new Date().getHours();
   const isNightTime = isNightProp !== null ? isNightProp : (statusLower.includes("night") || statusLower.includes("moon") || (currentHour >= 18 || currentHour < 6));
@@ -296,7 +296,7 @@ function getCalendarDays(year, month) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const prevMonthDays = new Date(year, month, 0).getDate();
-  
+
   const days = [];
   for (let i = firstDay - 1; i >= 0; i--) {
     days.push({ day: prevMonthDays - i, isCurrentMonth: false });
@@ -466,7 +466,7 @@ const WaveformScrubber = ({ position = 0, duration = 0, isPlaying = false, onSee
   const bottomY = centerY + barHeight / 2;
   const filledPathD = topPoints.length > 0
     ? `M 0,${bottomY} L ` + topPoints.join(' L ') + ` L ${playedX.toFixed(1)},${bottomY} Z`
-    : `M 0,${centerY - barHeight/2} L ${playedX},${centerY - barHeight/2} L ${playedX},${bottomY} L 0,${bottomY} Z`;
+    : `M 0,${centerY - barHeight / 2} L ${playedX},${centerY - barHeight / 2} L ${playedX},${bottomY} L 0,${bottomY} Z`;
 
   const formatTime = (secs) => {
     const m = Math.floor(secs / 60);
@@ -1071,7 +1071,7 @@ export default function Island() {
 
   const handleWheelSwipe = (e) => {
     if (wheelLockout.current || isDragging) return;
-    
+
     // Check if wheeling on settings container (Tab 9)
     const settingsElem = e.target.closest("#settings-container");
     if (settingsElem && currentTabId === 9) {
@@ -1080,7 +1080,7 @@ export default function Island() {
         const atTop = settingsElem.scrollTop <= 1;
         const atBottom = settingsElem.scrollTop + settingsElem.clientHeight >= settingsElem.scrollHeight - 1;
         const delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-        
+
         // If scrolling inside settings content (down when not at bottom, or up when not at top), allow content to scroll
         if ((delta > 0 && !atBottom) || (delta < 0 && !atTop)) {
           return;
@@ -1178,19 +1178,19 @@ export default function Island() {
   const width = notificationAlert
     ? 300
     : mode === "large"
-    ? (currentTab === 9 ? 495 : currentTab === 1 ? 390 : currentTab === 10 ? 370 : currentTab === 0 ? 405 : currentTab === 4 ? 400 : currentTab === 6 ? 340 : currentTab === 3 ? 380 : 380)
-    : (mode === "quick" && isPlaying && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert && !volumeAlert && !keyLockAlert && !usbAlert && !notificationAlert)
-      ? nowPlayingWidth
-      : (mode === "quick" || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert || volumeAlert || keyLockAlert || usbAlert || notificationAlert)
-        ? 260
-        : isPlaying
-          ? nowPlayingWidth
-          : 170;
+      ? (currentTab === 9 ? 495 : currentTab === 1 ? 390 : currentTab === 10 ? 370 : currentTab === 0 ? 405 : currentTab === 4 ? 400 : currentTab === 6 ? 340 : currentTab === 3 ? 380 : 380)
+      : (mode === "quick" && isPlaying && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert && !volumeAlert && !keyLockAlert && !usbAlert && !notificationAlert)
+        ? nowPlayingWidth
+        : (mode === "quick" || alert || chargingAlert || bluetoothAlert || cameraAlert || microphoneAlert || volumeAlert || keyLockAlert || usbAlert || notificationAlert)
+          ? 260
+          : isPlaying
+            ? nowPlayingWidth
+            : 170;
   const height = notificationAlert
     ? 46
     : mode === "large"
-    ? (currentTab === 9 ? (positionMode === "free" ? 435 : 355) : currentTab === 8 ? 180 : currentTab === 1 ? 272 : currentTab === 4 ? 210 : currentTab === 5 ? 240 : currentTab === 6 ? 180 : currentTab === 10 ? 192 : currentTab === 3 ? 185 : currentTab === 0 ? 120 : 190)
-    : 40;
+      ? (currentTab === 9 ? (positionMode === "free" ? 435 : 355) : currentTab === 8 ? 180 : currentTab === 1 ? 272 : currentTab === 4 ? 210 : currentTab === 5 ? 240 : currentTab === 6 ? 180 : currentTab === 10 ? 192 : currentTab === 3 ? 185 : currentTab === 0 ? 120 : 190)
+      : 40;
 
   useEffect(() => {
     if (window.electronAPI?.platform === 'win32') {
@@ -1218,7 +1218,7 @@ export default function Island() {
 
     if (localStorage.getItem('newuser') === 'true') {
       const timer = setTimeout(() => {
-        window.electronAPI?.openExternal ? window.electronAPI.openExternal("https://github.com/TopMyster/Ripple/blob/main/instructions.md") : window.open("https://github.com/TopMyster/Ripple/blob/main/instructions.md", "_blank");
+        window.electronAPI?.openExternal ? window.electronAPI.openExternal("https://github.com/Abrar Nabil/Ripple/blob/main/instructions.md") : window.open("https://github.com/Abrar Nabil/Ripple/blob/main/instructions.md", "_blank");
         localStorage.setItem('newuser', 'false');
       }, 3000);
       return () => clearTimeout(timer);
@@ -2434,10 +2434,10 @@ export default function Island() {
                   background: notificationAlert.appName?.toLowerCase().includes('whatsapp')
                     ? 'linear-gradient(135deg, #25D366, #128C7E)'
                     : notificationAlert.appName?.toLowerCase().includes('spotify')
-                    ? '#1db954'
-                    : notificationAlert.appName?.toLowerCase().includes('discord')
-                    ? '#5865F2'
-                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      ? '#1db954'
+                      : notificationAlert.appName?.toLowerCase().includes('discord')
+                        ? '#5865F2'
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -2764,7 +2764,7 @@ export default function Island() {
                     {/* Right: Giant Temp & Condition Title */}
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: 30, fontWeight: 800, color: '#ffffff', fontFamily: 'OpenRunde, system-ui, sans-serif', lineHeight: 1, letterSpacing: '-0.5px' }}>
-                      {tempVal}°{weatherUnit === 'f' ? 'F' : 'C'}
+                        {tempVal}°{weatherUnit === 'f' ? 'F' : 'C'}
                       </div>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255, 255, 255, 0.75)', marginTop: 4, fontFamily: 'OpenRunde, system-ui, sans-serif' }}>
                         {statusStr}
@@ -2946,7 +2946,7 @@ export default function Island() {
                           }}
                         />
                       )}
-                      
+
                       {/* Vignette gradient dark overlay */}
                       <div
                         style={{
@@ -3868,9 +3868,9 @@ export default function Island() {
                   <p style={{ fontSize: 11, opacity: 0.4, marginTop: -8, marginBottom: 8 }}>Drag to reorder, click eye to hide.</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {tabOrder.map((id, i) => {
-                           const tabDef = TABS.find(t => t.id === id);
-                           if (!tabDef) return null; // Guard against stale tab IDs from localStorage
-                           const isHidden = hiddenTabs.includes(id);
+                      const tabDef = TABS.find(t => t.id === id);
+                      if (!tabDef) return null; // Guard against stale tab IDs from localStorage
+                      const isHidden = hiddenTabs.includes(id);
                       return (
                         <div
                           key={id}
