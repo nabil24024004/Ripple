@@ -1,8 +1,8 @@
-# Ripple
+# Quick Pill
 
 **Dynamic Island, but for everyone**
 
-Ripple is a cross-platform desktop application that recreates Apple's Dynamic Island experience on Windows, Linux, and macOS. It's a notification hub, widget system, and smart assistant that stays out of your way until you need it.
+Quick Pill is a cross-platform desktop application that recreates Apple's Dynamic Island experience on Windows, Linux, and macOS. It's a notification hub, widget system, and smart assistant that stays out of your way until you need it.
 
 <div align="center">
 
@@ -51,10 +51,10 @@ Download the latest release for your platform:
 - **macOS**: `.dmg` package (Intel & Apple Silicon supported)
 - **Linux**: `.deb` or `.rpm` packages
 
-[Download Latest Release](https://github.com/nabil24024004/Ripple/releases)
+[Download Latest Release](https://github.com/Abrar Nabil/Quick-Pill/releases)
 
 ### First Run
-1. Install and launch Ripple
+1. Install and launch Quick Pill
 2. The Island will appear on your screen
 3. **Click** the Island to open Large Mode
 4. **Hover** over it to see Quick Mode
@@ -103,8 +103,8 @@ Download the latest release for your platform:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Abrar Nabil/Ripple.git
-cd Ripple
+git clone https://github.com/Abrar Nabil/Quick-Pill.git
+cd Quick-Pill
 
 # Install dependencies
 npm install
@@ -113,7 +113,7 @@ npm install
 npm start
 ```
 
-The development server will launch Ripple with hot reload enabled. Press `Ctrl+R` (or `Cmd+R` on macOS) to refresh the app.
+The development server will launch Quick Pill with hot reload enabled. Press `Ctrl+R` (or `Cmd+R` on macOS) to refresh the app.
 
 #### Build for Current OS
 ```bash
@@ -166,7 +166,7 @@ Please check [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-Ripple is open source and available under the [MIT License](LICENSE).
+Quick Pill is open source and available under the [MIT License](LICENSE).
 
 ---
 

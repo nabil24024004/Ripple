@@ -1,6 +1,6 @@
 {
-  "name": "ripple",
-  "productName": "Ripple",
+  "name": "quick-pill",
+  "productName": "Quick Pill",
   "version": "5.0.0",
   "description": "A Dynamic Island for All",
   "main": ".vite/build/main.js",

@@ -1,4 +1,4 @@
-## 👋 Welcome to Ripple
+## 👋 Welcome to Quick Pill
 
 ### Island
 

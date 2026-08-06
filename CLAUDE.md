@@ -1,14 +1,14 @@
-# CLAUDE.md - Ripple Island Developer & AI Guide
+# CLAUDE.md - Quick Pill Developer & AI Guide
 
-Welcome to the **Ripple** project codebase! This file serves as the definitive reference for AI assistants and developers working on Ripple.
+Welcome to the **Quick Pill** project codebase! This file serves as the definitive reference for AI assistants and developers working on Quick Pill.
 
 ---
 
 ## 📌 Project Overview
 
-**Ripple** is a cross-platform desktop application that recreates Apple's Dynamic Island experience on **Windows**, **macOS**, and **Linux**. It acts as a non-intrusive notification hub, system monitor, media controller, and customizable widget panel that expands on hover or click while floating seamlessly above all desktop windows.
+**Quick Pill** is a cross-platform desktop application that recreates Apple's Dynamic Island experience on **Windows**, **macOS**, and **Linux**. It acts as a non-intrusive notification hub, system monitor, media controller, and customizable widget panel that expands on hover or click while floating seamlessly above all desktop windows.
 
-- **Product Name**: Ripple
+- **Product Name**: Quick Pill
 - **Current Version**: 5.0.0
 - **License**: MIT
 - **Author**: Abrar Nabil
@@ -77,7 +77,7 @@ The Island interface operates across **3 primary modes** and **2 optional toggle
 
 ## 🧩 Feature Tabs (0 to 10)
 
-Ripple includes **feature tabs** managed in [Island.jsx](file:///d:/Ripple%20Island/src/Island.jsx):
+Quick Pill includes **feature tabs** managed in [Island.jsx](file:///d:/Ripple%20Island/src/Island.jsx):
 
 | Tab ID | Tab Name | Functionality & Recent Enhancements |
 | :-: | :--- | :--- |

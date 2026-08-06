@@ -1218,7 +1218,7 @@ export default function Island() {
 
     if (localStorage.getItem('newuser') === 'true') {
       const timer = setTimeout(() => {
-        window.electronAPI?.openExternal ? window.electronAPI.openExternal("https://github.com/Abrar Nabil/Ripple/blob/main/instructions.md") : window.open("https://github.com/Abrar Nabil/Ripple/blob/main/instructions.md", "_blank");
+        window.electronAPI?.openExternal ? window.electronAPI.openExternal("https://github.com/Abrar Nabil/Quick-Pill/blob/main/instructions.md") : window.open("https://github.com/Abrar Nabil/Quick-Pill/blob/main/instructions.md", "_blank");
         localStorage.setItem('newuser', 'false');
       }, 3000);
       return () => clearTimeout(timer);

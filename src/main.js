@@ -25,9 +25,9 @@ let mainWindow = null;
 // --- Logging System ---
 function getLogFilePath() {
   try {
-    return path.join(app.getPath("userData"), "ripple-island.log");
+    return path.join(app.getPath("userData"), "quick-pill.log");
   } catch (_) {
-    return path.join(process.cwd(), "ripple-island.log");
+    return path.join(process.cwd(), "quick-pill.log");
   }
 }
 
@@ -407,7 +407,7 @@ ipcMain.handle("set-auto-launch", (event, enable) => {
       ".config",
       "autostart",
     );
-    const desktopFilePath = path.join(autostartPath, "ripple.desktop");
+    const desktopFilePath = path.join(autostartPath, "quick-pill.desktop");
 
     try {
       if (enable) {
@@ -417,8 +417,8 @@ ipcMain.handle("set-auto-launch", (event, enable) => {
         const desktopFileContent = `[Desktop Entry]
 Type=Application
 Version=1.0
-Name=Ripple
-Comment=Ripple Desktop Assistant
+Name=Quick Pill
+Comment=Quick Pill Desktop Assistant
 Exec="${app.getPath("exe")}"
 Icon=${getIconPath()}
 Terminal=false
@@ -588,7 +588,7 @@ app.whenReady().then(() => {
     tray = new Tray(trayIcon);
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: "Show/Hide Ripple",
+        label: "Show/Hide Quick Pill",
         click: () => {
           if (mainWindow) {
             if (mainWindow.isVisible()) {
@@ -607,7 +607,7 @@ app.whenReady().then(() => {
         },
       },
     ]);
-    tray.setToolTip("Ripple");
+    tray.setToolTip("Quick Pill");
     tray.setContextMenu(contextMenu);
   } catch (e) {
     console.error("Failed to create tray:", e);

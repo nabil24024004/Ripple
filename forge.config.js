@@ -6,14 +6,14 @@ module.exports = {
   packagerConfig: {
     electronDist: require('path').join(__dirname, 'node_modules/electron/dist'),
     asar: true,
-    executableName: 'ripple',
+    executableName: 'quick-pill',
     icon: 'src/assets/icons/icon',
     extraResource: [
       path.join(__dirname, 'src/assets/icons/icon.png'),
     ],
     ...(process.platform === 'darwin' ? {
       extendInfo: {
-        NSAppleEventsUsageDescription: 'Ripple needs to control media players like Spotify and AppleMusic.',
+        NSAppleEventsUsageDescription: 'Quick Pill needs to control media players like Spotify and AppleMusic.',
       },
     } : {}),
   },
@@ -70,7 +70,7 @@ module.exports = {
 
           const archSuffix = result.platform === 'darwin' ? `-${result.arch}` : '';
           const portableSuffix = ext === '.zip' ? '-Portable' : '';
-          const newName = `Ripple-${os}${archSuffix}-v${version}${portableSuffix}${ext}`;
+          const newName = `QuickPill-${os}${archSuffix}-v${version}${portableSuffix}${ext}`;
           const newPath = path.join(path.dirname(artifactPath), newName);
 
           fs.renameSync(artifactPath, newPath);
@@ -89,10 +89,10 @@ module.exports = {
     {
       name: '@electron-forge/maker-squirrel',
       config: {
-        name: 'ripple',
+        name: 'quick_pill',
         authors: 'Abrar Nabil',
         description: 'A Dynamic Island for All',
-        iconUrl: 'https://raw.githubusercontent.com/Abrar Nabil/Ripple/main/src/assets/icons/icon.ico',
+        iconUrl: 'https://raw.githubusercontent.com/Abrar Nabil/Quick-Pill/main/src/assets/icons/icon.ico',
         setupIcon: path.join(__dirname, 'src/assets/icons/icon.ico')
       }
     },
@@ -102,10 +102,10 @@ module.exports = {
         language: 1033,
         manufacturer: 'Abrar Nabil',
         description: 'A Dynamic Island for All',
-        name: 'Ripple',
+        name: 'Quick Pill',
         icon: path.join(__dirname, 'src/assets/icons/icon.ico'),
-        shortcutFolderName: 'Ripple',
-        programFilesFolderName: 'Ripple',
+        shortcutFolderName: 'Quick Pill',
+        programFilesFolderName: 'Quick Pill',
         ui: {
           chooseDirectory: true,
         },
@@ -115,7 +115,7 @@ module.exports = {
     {
       name: '@electron-forge/maker-dmg',
       config: {
-        name: 'RippleInstaller',
+        name: 'QuickPillInstaller',
         format: 'UDZO',
         overwrite: true
       }
@@ -125,8 +125,8 @@ module.exports = {
       config: {
         options: {
           icon: path.join(__dirname, 'src/assets/icons/icon.png'),
-          executableName: 'ripple',
-          name: 'ripple',
+          executableName: 'quick-pill',
+          name: 'quick-pill',
         }
       },
     },
@@ -135,7 +135,7 @@ module.exports = {
       config: {
         options: {
           icon: path.join(__dirname, 'src/assets/icons/icon.png'),
-          name: 'ripple',
+          name: 'quick-pill',
         }
       },
     },
