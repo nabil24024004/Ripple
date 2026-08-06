@@ -1,15 +1,18 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const path = require('path');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+const { MakerSquirrel } = require('@electron-forge/maker-squirrel');
+const { MakerZIP } = require('@electron-forge/maker-zip');
 
 module.exports = {
   packagerConfig: {
-    electronDist: require('path').join(__dirname, 'node_modules/electron/dist'),
     asar: true,
     executableName: 'quick-pill',
-    icon: 'src/assets/icons/icon',
+    icon: path.join(__dirname, 'src/assets/icons/icon'),
     extraResource: [
+      path.join(__dirname, 'src/assets/icons/icon.ico'),
       path.join(__dirname, 'src/assets/icons/icon.png'),
+      path.join(__dirname, 'src/assets/icons/icon.icns'),
     ],
     ...(process.platform === 'darwin' ? {
       extendInfo: {
@@ -63,7 +66,7 @@ module.exports = {
         for (const artifactPath of result.artifacts) {
           const ext = path.extname(artifactPath);
           // Skip non-installer files (e.g. blockmap, yml)
-          if (!['.dmg', '.msi', '.deb', '.rpm', '.zip'].includes(ext)) {
+          if (!['.dmg', '.msi', '.deb', '.rpm', '.zip', '.exe'].includes(ext)) {
             renamedArtifacts.push(artifactPath);
             continue;
           }
@@ -86,63 +89,14 @@ module.exports = {
   },
   rebuildConfig: {},
   makers: [
-    {
-      name: '@electron-forge/maker-squirrel',
-      config: {
-        name: 'quick_pill',
-        authors: 'Abrar Nabil',
-        description: 'A Dynamic Island for All',
-        iconUrl: 'https://raw.githubusercontent.com/Abrar Nabil/Quick-Pill/main/src/assets/icons/icon.ico',
-        setupIcon: path.join(__dirname, 'src/assets/icons/icon.ico')
-      }
-    },
-    {
-      name: '@electron-forge/maker-wix',
-      config: {
-        language: 1033,
-        manufacturer: 'Abrar Nabil',
-        description: 'A Dynamic Island for All',
-        name: 'Quick Pill',
-        icon: path.join(__dirname, 'src/assets/icons/icon.ico'),
-        shortcutFolderName: 'Quick Pill',
-        programFilesFolderName: 'Quick Pill',
-        ui: {
-          chooseDirectory: true,
-        },
-      },
-    },
-
-    {
-      name: '@electron-forge/maker-dmg',
-      config: {
-        name: 'QuickPillInstaller',
-        format: 'UDZO',
-        overwrite: true
-      }
-    },
-    {
-      name: '@electron-forge/maker-deb',
-      config: {
-        options: {
-          icon: path.join(__dirname, 'src/assets/icons/icon.png'),
-          executableName: 'quick-pill',
-          name: 'quick-pill',
-        }
-      },
-    },
-    {
-      name: '@electron-forge/maker-rpm',
-      config: {
-        options: {
-          icon: path.join(__dirname, 'src/assets/icons/icon.png'),
-          name: 'quick-pill',
-        }
-      },
-    },
-    {
-      name: '@electron-forge/maker-zip',
-      platforms: ['darwin', 'win32', 'linux'],
-    },
+    new MakerSquirrel({
+      name: 'quick_pill',
+      authors: 'Abrar Nabil',
+      description: 'A Dynamic Island for All',
+      iconUrl: 'https://raw.githubusercontent.com/nabil24024004/Ripple/main/src/assets/icons/icon.ico',
+      setupIcon: path.join(__dirname, 'src/assets/icons/icon.ico')
+    }),
+    new MakerZIP({}, ['darwin', 'win32', 'linux']),
   ],
   plugins: [
     {

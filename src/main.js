@@ -444,20 +444,24 @@ Terminal=false
   }
 });
 
-const getIconPath = () => {
-  const ext = "png";
-  if (app.isPackaged) {
+const getIconPath = (forceExt = null) => {
+  const ext = forceExt || (process.platform === "win32" ? "ico" : process.platform === "darwin" ? "icns" : "png");
+
+  // 1. Try app bundle directory (works in both dev & app.asar)
+  try {
+    const appDirIcon = path.join(app.getAppPath(), `src/assets/icons/icon.${ext}`);
+    if (fs.existsSync(appDirIcon)) return appDirIcon;
+  } catch (_) {}
+
+  // 2. Try process.resourcesPath
+  try {
     const resPath = path.join(process.resourcesPath, `icon.${ext}`);
-    const assetsPath = path.join(
-      process.resourcesPath,
-      `assets/icons/icon.${ext}`,
-    );
-
     if (fs.existsSync(resPath)) return resPath;
+    const assetsPath = path.join(process.resourcesPath, `assets/icons/icon.${ext}`);
     if (fs.existsSync(assetsPath)) return assetsPath;
+  } catch (_) {}
 
-    return resPath;
-  }
+  // 3. Fallback relative to __dirname
   return path.join(__dirname, `../../src/assets/icons/icon.${ext}`);
 };
 
@@ -569,6 +573,9 @@ const createWindow = () => {
 };
 
 app.whenReady().then(() => {
+  if (process.platform === "win32") {
+    app.setAppUserModelId("com.neosparkx.quickpill");
+  }
   if (process.platform === "darwin") {
     app.dock.hide();
   }
@@ -582,9 +589,13 @@ app.whenReady().then(() => {
   });
 
   try {
-    const iconPath = getIconPath();
-    const icon = nativeImage.createFromPath(iconPath);
-    const trayIcon = icon.resize({ width: 16, height: 16 });
+    let iconPath = getIconPath();
+    let icon = nativeImage.createFromPath(iconPath);
+    if (icon.isEmpty()) {
+      iconPath = getIconPath("png");
+      icon = nativeImage.createFromPath(iconPath);
+    }
+    const trayIcon = icon.isEmpty() ? iconPath : icon.resize({ width: 16, height: 16 });
     tray = new Tray(trayIcon);
     const contextMenu = Menu.buildFromTemplate([
       {

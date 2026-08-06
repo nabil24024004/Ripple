@@ -792,7 +792,17 @@ const ScrollingTitle = ({ text = "", fontSize = 16 }) => {
 };
 
 export default function Island() {
-  const [time, setTime] = useState(null);
+  const [time, setTime] = useState(() => {
+    const date = new Date();
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const is12Hr = (localStorage.getItem("hour-format") || "12-hr") === "12-hr";
+    if (is12Hr) {
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+    }
+    return `${hours}:${minutes}`;
+  });
   const [mode, setMode] = useState("still");
   const [tabOrder, setTabOrder] = useState(() => JSON.parse(localStorage.getItem("tab-order") || "[2,4,5,6,7,8,10,0,1,3,9]"));
   const [hiddenTabs, setHiddenTabs] = useState(() => JSON.parse(localStorage.getItem("hidden-tabs") || "[6]"));
@@ -833,7 +843,7 @@ export default function Island() {
   const [largeStandbyEnabled, setLargeStandbyEnabled] = useState(localStorage.getItem("large-standby-mode") === "true");
   const [hideNotActiveIslandEnabled, sethideNotActiveIslandEnabled] = useState(localStorage.getItem("hide-island-notactive") === "true");
   const [showInfoWhenIdleEnabled, setShowInfoWhenIdleEnabled] = useState(
-    localStorage.getItem("show-info-when-idle") === "true"
+    localStorage.getItem("show-info-when-idle") !== "false"
   );
   const [hourFormat, setHourFormat] = useState((localStorage.getItem("hour-format") || "12-hr") === "12-hr");
   const [weather, setWeather] = useState({ temp: "", status: "", humidity: "", wind: "" });
@@ -1218,7 +1228,7 @@ export default function Island() {
 
     if (localStorage.getItem('newuser') === 'true') {
       const timer = setTimeout(() => {
-        window.electronAPI?.openExternal ? window.electronAPI.openExternal("https://github.com/Abrar Nabil/Quick-Pill/blob/main/instructions.md") : window.open("https://github.com/Abrar Nabil/Quick-Pill/blob/main/instructions.md", "_blank");
+        window.electronAPI?.openExternal ? window.electronAPI.openExternal("quickpill.neosparkx.com") : window.open("quickpill.neosparkx.com", "_blank");
         localStorage.setItem('newuser', 'false');
       }, 3000);
       return () => clearTimeout(timer);
@@ -2241,7 +2251,11 @@ export default function Island() {
         backgroundColor: bgColor || "#000000",
         color: textColor || "#FFFFFF",
         scale: 1,
-        opacity: (ctrlHeld && isHovered) ? 0.15 : 1,
+        opacity: (ctrlHeld && isHovered)
+          ? 0.15
+          : (mode === "still" && !isHovered && (!showInfoWhenIdleEnabled || hideNotActiveIslandEnabled) && !isPlaying && !showPausedQuickView && !isTimerRunning && timerSeconds === 0 && !alert && !chargingAlert && !bluetoothAlert && !cameraAlert && !microphoneAlert && !keyLockAlert && !usbAlert && !notificationAlert)
+            ? 0
+            : 1,
         x: sideStyles.x,
         borderRadius:
           mode === "large" && theme === "win95"
@@ -2287,7 +2301,7 @@ export default function Island() {
         '--island-bg-color': bgColor,
         position: 'fixed',
         margin: 0,
-        pointerEvents: isTransitioning ? 'auto' : (window.electronAPI?.platform === 'linux' && mode === 'still' && !isHovered) ? 'none' : 'auto'
+        pointerEvents: isTransitioning ? 'auto' : (mode === 'still' && !isHovered && (!showInfoWhenIdleEnabled || hideNotActiveIslandEnabled || window.electronAPI?.platform === 'linux')) ? 'none' : 'auto'
       }}
     >
       {/* Depleting Orange Border Stroke & Synchronized Glow for Active Timer */}

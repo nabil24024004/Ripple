@@ -8,8 +8,39 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
+    "build-win": "electron-builder --win",
     "publish": "electron-forge publish",
     "lint": "echo \"No linting configured\""
+  },
+  "build": {
+    "appId": "com.neosparkx.quickpill",
+    "productName": "Quick Pill",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "src/assets/icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "installerIcon": "src/assets/icons/icon.ico",
+      "uninstallerIcon": "src/assets/icons/icon.ico",
+      "installerHeaderIcon": "src/assets/icons/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Quick Pill"
+    },
+    "mac": {
+      "icon": "src/assets/icons/icon.icns"
+    },
+    "linux": {
+      "icon": "src/assets/icons/icon.png"
+    }
   },
   "keywords": [],
   "author": {
