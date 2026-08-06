@@ -394,6 +394,10 @@ ipcMain.handle("set-display", (event, displayId) => {
   }
 });
 
+// update-window-position: intentionally a no-op.
+// The island is positioned via CSS (position:fixed, left:X%, top:Ypx) inside a full-screen
+// transparent overlay, so no OS window move is needed. The IPC call is kept for potential
+// future use (e.g. shrinking the overlay window to a smaller bounding box).
 ipcMain.handle("update-window-position", (event, xPerc, yPx) => {});
 
 ipcMain.handle("set-auto-launch", (event, enable) => {
@@ -415,7 +419,8 @@ Type=Application
 Version=1.0
 Name=Ripple
 Comment=Ripple Desktop Assistant
-Exec="${app.getPath("exe")}"\nIcon=${getIconPath()}
+Exec="${app.getPath("exe")}"
+Icon=${getIconPath()}
 Terminal=false
 `;
         fs.writeFileSync(desktopFilePath, desktopFileContent);
@@ -983,7 +988,9 @@ ipcMain.handle("get-microphone-status", async () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform === "linux" && !tray) {
+  // Quit whenever there is no tray icon keeping the app alive.
+  // On macOS the 'activate' handler re-creates the window, matching expected behaviour.
+  if (!tray) {
     app.quit();
   }
 });
@@ -1004,7 +1011,10 @@ ipcMain.handle("control-system-media", async (event, command) => {
         end if
         `;
     execFile("osascript", ["-e", script]);
-  } else if (platform === "win32") {
+  } else  if (platform === "win32") {
+    // 'seek' is client-side only — there is no OS key for it. Return early to avoid
+    // accidentally firing a VK keypress for unrecognised commands.
+    if (!['playpause', 'next', 'previous'].includes(command)) return;
     let vkCode = "0xCD"; // VK_MEDIA_PLAY_PAUSE
     if (command === "next") vkCode = "0xB0"; // VK_MEDIA_NEXT_TRACK
     if (command === "previous") vkCode = "0xB1"; // VK_MEDIA_PREV_TRACK
@@ -1105,8 +1115,17 @@ ipcMain.handle("control-system-volume", async (event, action) => {
     let vkCode = "0xAF"; // VK_VOLUME_UP
     if (action === "down") vkCode = "0xAE"; // VK_VOLUME_DOWN
     if (action === "mute") vkCode = "0xAD"; // VK_VOLUME_MUTE
-    const psScript = `[Void][System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); $type = '[DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);'; $MediaKey = Add-Type -MemberDefinition $type -Name "WinMediaKey" -Namespace "WinAPI" -PassThru; $MediaKey::keybd_event(${vkCode}, 0, 0, [UIntPtr]::Zero); $MediaKey::keybd_event(${vkCode}, 0, 2, [UIntPtr]::Zero);`;
-    exec(`powershell -NoProfile -Command "${psScript}"`);
+    // Use encoded command (same approach as media control) to avoid shell-quoting issues.
+    const psScript = `
+$type = '[DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);'
+$MediaKey = Add-Type -MemberDefinition $type -Name "WinVolKey" -Namespace "WinAPI" -PassThru
+$MediaKey::keybd_event(${vkCode}, 0, 0, [UIntPtr]::Zero)
+$MediaKey::keybd_event(${vkCode}, 0, 2, [UIntPtr]::Zero)
+`;
+    const encCmd = getPowershellEncodedCommand(psScript);
+    exec(`powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encCmd}`, (err) => {
+      if (err) logToFile("Volume control error:", err);
+    });
     return true;
   }
   return false;
@@ -1206,6 +1225,31 @@ function Await-Op($asyncOp, $type) {
     } catch { return $null }
 }
 
+function Get-AppIconBase64($appId) {
+    try {
+        $proc = $null
+        if ($appId) {
+            # Try to derive process name from AppId (e.g. "com.squirrel.Spotify.Spotify" -> "Spotify")
+            $cleanName = $appId.Split('!')[-1].Split('.')[-1].Replace('.exe','')
+            $proc = Get-Process | Where-Object { $_.ProcessName -eq $cleanName -or $_.ProcessName -like "*$cleanName*" } | Select-Object -First 1
+        }
+        if (-not $proc) { return "" }
+        $exePath = $proc.MainModule.FileName
+        if (-not $exePath) { return "" }
+        $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exePath)
+        if (-not $icon) { return "" }
+        $bmp = $icon.ToBitmap()
+        $ms = New-Object System.IO.MemoryStream
+        $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+        $bytes = $ms.ToArray()
+        $ms.Close(); $bmp.Dispose(); $icon.Dispose()
+        if ($bytes.Length -gt 0) {
+            return "data:image/png;base64," + [Convert]::ToBase64String($bytes)
+        }
+    } catch {}
+    return ""
+}
+
 try {
     $listener = [Windows.UI.Notifications.Management.UserNotificationListener]::Current
 
@@ -1250,6 +1294,7 @@ try {
                 $appName = $n.AppInfo.DisplayInfo.DisplayName
                 $appId = $n.AppInfo.AppUserModelId
             } catch {}
+            $icon = Get-AppIconBase64 $appId
             $results.Add([PSCustomObject]@{
                 Id = $n.Id
                 AppName = $appName
@@ -1257,6 +1302,7 @@ try {
                 Title = $title
                 Body = $body
                 Timestamp = $n.CreationTime.ToString("o")
+                Icon = $icon
             })
         } catch { continue }
     }

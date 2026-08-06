@@ -829,7 +829,7 @@ export default function Island() {
   const [alert, setAlert] = useState(null);
   const [batteryAlertsEnabled, setBatteryAlertsEnabled] = useState(localStorage.getItem("battery-alerts") !== "false");
   const [islandBorderEnabled, setIslandBorderEnabled] = useState(localStorage.getItem("island-border") === "true");
-  const [standbyBorderEnabled, setStandbyEnabled] = useState(localStorage.getItem("standby-mode") === "true");
+  const [standbyBorderEnabled, setStandbyBorderEnabled] = useState(localStorage.getItem("standby-mode") === "true");
   const [largeStandbyEnabled, setLargeStandbyEnabled] = useState(localStorage.getItem("large-standby-mode") === "true");
   const [hideNotActiveIslandEnabled, sethideNotActiveIslandEnabled] = useState(localStorage.getItem("hide-island-notactive") === "true");
   const [showInfoWhenIdleEnabled, setShowInfoWhenIdleEnabled] = useState(
@@ -968,7 +968,7 @@ export default function Island() {
     if (visibleTabs.length > 0 && !visibleTabs.includes(currentTabId)) {
       setTabState([visibleTabs[0], 0]);
     }
-  }, [hiddenTabs, visibleTabs, currentTabId]);
+  }, [visibleTabs, currentTabId]);
   const albumRef = useRef(null);
   const isDraggingRef = useRef(false);
   const mouseLeaveTimer = useRef(null);
@@ -1269,7 +1269,7 @@ export default function Island() {
 
   const handleStandbyChange = (e) => {
     const value = e.target.value === "true";
-    setStandbyEnabled(value);
+    setStandbyBorderEnabled(value);
     localStorage.setItem("standby-mode", value ? "true" : "false");
   };
 
@@ -1616,7 +1616,7 @@ export default function Island() {
       inflightClipboard = false;
     };
     pollGetClipboard();
-    const pollInterval = currentTab === 1 ? 2000 : 3500;
+    const pollInterval = currentTab === 7 ? 2000 : 3500; // Poll faster when Clipboard tab (7) is active
     const interval = setInterval(pollGetClipboard, pollInterval);
     return () => clearInterval(interval);
   }, [currentTab]);
@@ -1717,7 +1717,7 @@ export default function Island() {
 
   // Get System Metrics (CPU, RAM) - Only active when System Metrics tab (Tab 8) is visible
   useEffect(() => {
-    if (mode !== 'large' || currentTab !== 8) return;
+    if (mode !== 'large' || currentTab !== 6) return; // Stats tab is ID 6
     const fetchMetrics = async () => {
       if (window.electronAPI?.getSystemMetrics) {
         try {
@@ -1792,7 +1792,8 @@ export default function Island() {
             appId: n.AppId || '',
             title: n.Title || '',
             body: n.Body || '',
-            timestamp: n.Timestamp || ''
+            timestamp: n.Timestamp || '',
+            icon: n.Icon || ''   // base64 PNG from PowerShell Get-AppIconBase64
           }));
           if (isFirstFetch) {
             mapped.forEach(n => { if (n.id) seenNotificationIds.current.add(n.id); });
@@ -2446,11 +2447,7 @@ export default function Island() {
                   flexShrink: 0,
                   boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
                 }}>
-                  {notificationAlert.appName?.toLowerCase().includes('whatsapp') ? (
-                    <WhatsAppLogo size={14} color="#ffffff" />
-                  ) : (
-                    notificationAlert.appName?.[0]?.toUpperCase() || <Bell size={12} color="#fff" />
-                  )}
+                  {notificationAlert.appName?.[0]?.toUpperCase() || <Bell size={12} color="#fff" />}
                 </div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, gap: 1 }}>
@@ -2767,7 +2764,7 @@ export default function Island() {
                     {/* Right: Giant Temp & Condition Title */}
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: 30, fontWeight: 800, color: '#ffffff', fontFamily: 'OpenRunde, system-ui, sans-serif', lineHeight: 1, letterSpacing: '-0.5px' }}>
-                        {tempVal}°C
+                      {tempVal}°{weatherUnit === 'f' ? 'F' : 'C'}
                       </div>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255, 255, 255, 0.75)', marginTop: 4, fontFamily: 'OpenRunde, system-ui, sans-serif' }}>
                         {statusStr}
@@ -2996,7 +2993,8 @@ export default function Island() {
                           isPlaying={spotifyTrack.state === 'playing'}
                           onSeek={(sec) => {
                             setMediaPosition(sec);
-                            window.electronAPI.controlSystemMedia('seek', sec);
+                            // Note: 'seek' is not implemented in the OS media IPC layer;
+                            // position is updated client-side only for visual feedback.
                           }}
                         />
 
@@ -3212,9 +3210,9 @@ export default function Island() {
                           selectedMonth === today.getMonth() &&
                           selectedYear === today.getFullYear();
 
-                        let textColor = isWeekend ? '#ff3b30' : '#ffffff';
+                        let dayCellColor = isWeekend ? '#ff3b30' : '#ffffff';
                         if (!item.isCurrentMonth) {
-                          textColor = isWeekend ? 'rgba(255, 59, 48, 0.3)' : 'rgba(255, 255, 255, 0.25)';
+                          dayCellColor = isWeekend ? 'rgba(255, 59, 48, 0.3)' : 'rgba(255, 255, 255, 0.25)';
                         }
 
                         return (
@@ -3228,7 +3226,7 @@ export default function Island() {
                               fontSize: 12,
                               fontWeight: isToday ? 800 : 600,
                               fontFamily: 'OpenRunde, system-ui, sans-serif',
-                              color: isToday ? '#ffffff' : textColor
+                              color: isToday ? '#ffffff' : dayCellColor
                             }}
                           >
                             {isToday ? (
@@ -3870,8 +3868,9 @@ export default function Island() {
                   <p style={{ fontSize: 11, opacity: 0.4, marginTop: -8, marginBottom: 8 }}>Drag to reorder, click eye to hide.</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {tabOrder.map((id, i) => {
-                      const tabDef = TABS.find(t => t.id === id);
-                      const isHidden = hiddenTabs.includes(id);
+                           const tabDef = TABS.find(t => t.id === id);
+                           if (!tabDef) return null; // Guard against stale tab IDs from localStorage
+                           const isHidden = hiddenTabs.includes(id);
                       return (
                         <div
                           key={id}
@@ -3972,20 +3971,20 @@ export default function Island() {
                         { val: "bottom-left", label: "Bot L" },
                         { val: "bottom-center", label: "Bot C" },
                         { val: "bottom-right", label: "Bot R" }
-                      ].map((mode) => (
-                        <label key={mode.val} className="radio-label" style={{ justifyContent: 'center' }}>
+                      ].map((posOption) => (
+                        <label key={posOption.val} className="radio-label" style={{ justifyContent: 'center' }}>
                           <input
                             type="radio"
                             name="positionMode"
-                            value={mode.val}
-                            checked={positionMode === mode.val}
+                            value={posOption.val}
+                            checked={positionMode === posOption.val}
                             onChange={(e) => {
                               setPositionMode(e.target.value);
                               localStorage.setItem("position-mode", e.target.value);
                             }}
                           />
                           <span className="radio-custom"></span>
-                          {mode.label}
+                          {posOption.label}
                         </label>
                       ))}
                     </div>
